@@ -1,0 +1,14 @@
+- my math lib:
+    - sigmoid
+    - than
+    - step
+    - reLu
+    - leakyReLu
+    - softmax
+
+- parsing:
+    - dataset
+    - args
+
+- archi
+    - network class
