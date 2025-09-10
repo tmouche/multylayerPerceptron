@@ -17,6 +17,8 @@ class Layer:
         try:
             self.activation_fnc = getattr(myMath, activation_function)
             self.prime_fnc = getattr(myMath, activation_function + "Prime")
+            if activation_function == 'softmax' and units != 'output':
+                raise Exception("Error log: Softmax can not be the activation function for other than output")
         except:
             raise Exception("Error log: Unrecognized activation function")
         if weight_initializer != 'default':

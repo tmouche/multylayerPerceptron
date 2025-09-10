@@ -38,7 +38,7 @@ class myMath:
     @staticmethod
     def softmax(z):
         if isinstance(z, float):
-            return 1.
+            raise Exception("Error log: Softmax is in/out vector function and doesnot handle scalar")
         sum_exp_z = sum(np.exp(z))
         return [math.exp(x)/sum_exp_z for x in z]
 
@@ -76,14 +76,15 @@ class myMath:
     @staticmethod
     def softmaxPrimeJacobian(z):
         if isinstance(z, float):
-            return 
+            raise Exception("Error log: Softmax is in/out vector function and doesnot handle scalar")
+        # jacobian matrix derivative
         return
     
     @staticmethod
-    def softmaxPrimeCross(z):
+    def softmaxPrimeCross(z, one_hot):
         if isinstance(z, float):
-            return 
-        return
+            raise Exception("Error log: Softmax is in/out vector function and doesnot handle scalar")
+        return [z[i] - one_hot[i] for i in range(len(z))]
     
     # RANDOM INITIALIZER
     @staticmethod

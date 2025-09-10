@@ -1,16 +1,23 @@
 {
-    "input": {
-        "size": 30,
-        "activation": "sigmoid",
-        "initializer": "heNormal"
+    "general": {
+        "learningRate": 0.005,
+        "batchSize": 30,
+        "epochs": 84,
+        "loss": "crossEntropy"
     },
-    "hidden": {
-        "size": 10,
-        "activation": "sigmoid",
-        "initializer": "heNormal"
-    },
-    "output": {
-        "size": 30,
-        "activation"
+    "layer": {    
+        "input": {
+            "size": 30
+        },
+        "hidden": {
+            "size": 10,
+            "activation": "sigmoid",
+            "initializer": "heNormal"
+        },
+        "output": {
+            "size": 30,
+            "activation": "softmax",
+            "initializer": "heNormal"
+        }
     }
 }
