@@ -1,0 +1,1 @@
+https://medium.com/data-science/derivative-of-the-softmax-function-and-the-categorical-cross-entropy-loss-ffceefc081d1 -> soft max et cross entropy loss

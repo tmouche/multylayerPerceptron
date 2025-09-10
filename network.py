@@ -3,21 +3,26 @@ import numpy as np
 import pandas as pd
 import mathplotlib as plt
 
+from myMath import myMath
+from layer import Layer
+
 class Network:
     
     __learning_rate: float = None
-    __max_epoch: int = None
-    __activation: str = None
+    __epoch: int = None
     __optimisation: str = None
-    __weights: np.array = None
-    __biaises: np.array = None
 
-    def __init__(self, activation="sigmoid", max_epoch=10, learning_rate=0.005, opti="adam"):
-        self.__activation = activation
-        self.__max_epoch = max_epoch
-        self.__learning_rate = learning_rate
-        print(f"log: the network has been initialized with the following options:\
-                - activation: {self.__activation}\
-                - max epoch: {self.__max_epoch}\
-                - learning rate: {self.__learning_rate}\
-                - optimisation: {self.__optimisation}")
+    def __init__(self, init_file_path : str):
+        try:
+            f = open(init_file_path, 'w')
+        except:
+            raise Exception(f"Error log: Can not open the file {init_file_path}")
+        
+
+
+    def add_layer(self, activation, size, weight_initialisation):
+
+
+
+        
+    

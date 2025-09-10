@@ -1,0 +1,16 @@
+{
+    "input": {
+        "size": 30,
+        "activation": "sigmoid",
+        "initializer": "heNormal"
+    },
+    "hidden": {
+        "size": 10,
+        "activation": "sigmoid",
+        "initializer": "heNormal"
+    },
+    "output": {
+        "size": 30,
+        "activation"
+    }
+}
