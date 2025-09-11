@@ -4,6 +4,10 @@ import math
 
 class myMath:
     
+    @staticmethod
+    def default(z):
+        return z
+
     # ACTIVATION FUNCTIONS
     @staticmethod
     def sigmoid(z):
@@ -74,12 +78,20 @@ class myMath:
         return np.zeros(len(z))
     
     @staticmethod
-    def softmaxPrimeJacobian(z):
+    def softmaxPrime(z):
         if isinstance(z, float):
             raise Exception("Error log: Softmax is in/out vector function and doesnot handle scalar")
-        # jacobian matrix derivative
-        return
+        R = len(z)
+        jacobian = np.zeros((R, R))
+        for i in range(R):
+            for j in range(R):
+                if i == j:
+                    jacobian[i,j] = z[i]*(1-z[i])
+                else:
+                    jacobian[i,j] = -z[i]*z[j]
+        return jacobian
     
+    # je sais pas trop comment m organiser sur celle ci, sachant que z c est le softmax et one_hot le resultat attendu [0,1]
     @staticmethod
     def softmaxPrimeCross(z, one_hot):
         if isinstance(z, float):
@@ -123,6 +135,8 @@ class myMath:
         limit = math.sqrt(6/fan_in)
         return np.random.uniform(low=-limit, high=limit, size=shape)
 
+    # LOSS FUNCTION
+    
 
 
     

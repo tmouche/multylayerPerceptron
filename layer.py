@@ -1,36 +1,54 @@
 
 import numpy as np
-import mathplotlib as plt
+import matplotlib as plt
 
 from myMath import myMath
 
 class Layer:
 
+    unit: str = None
+
+    activation_name: str = None
     activation_fnc = None
+    prime_name: str = None
     prime_fnc = None
-    weight_init_fnc = None
+    weight_init_name: str = None
 
-    __weight: np.array = None
-    __biaises: np.array = None
+    weight: np.array = None
+    biai: np.array = None
 
-    def __init__(self, size : int, previous_size : int, units : str, activation_function='sigmoid', weight_initializer='default'):
+    def __init__(self, size : int, prev_size : int, unit : str, act_fct : str, w_init : str):
+        a_unit = ["input", "hidden", "output"]
+        a_act = ["sigmoid", "reLu", "leakyReLu", "tanh", "step", "sofmax"]
+        a_init = ["randomNormal", "randomUniform", "zeros", "ones", "xavierNormal", "xavierUniform", "heNormal", "heUniform"]
+
+        if unit in a_unit == False:
+            raise Exception(f"Error log: {unit} is not know as unit")
+        if act_fct in a_act == False:
+            raise Exception(f"Error log: {act_fct} is not know as activation function")
+        if w_init in a_init == False:
+            raise Exception(f"Error log: {w_init} is not know as weights initializer")
+        self.unit = unit
         try:
-            self.activation_fnc = getattr(myMath, activation_function)
-            self.prime_fnc = getattr(myMath, activation_function + "Prime")
-            if activation_function == 'softmax' and units != 'output':
+            self.activation_name = act_fct
+            self.activation_fnc = getattr(myMath, self.activation_name)
+            self.prime_name = act_fct + "Prime"
+            self.prime_fnc = getattr(myMath, self.prime_name)
+            if act_fct == 'softmax' and unit != 'output':
                 raise Exception("Error log: Softmax can not be the activation function for other than output")
         except:
             raise Exception("Error log: Unrecognized activation function")
-        if weight_initializer != 'default':
+        if w_init != 'default':
             try:
-                self.__weight = myMath.zeros(shape=(size, previous_size))
-                self.__biaises = myMath.zeros(shape=(size, 1))
-                self.weight_init_fnc = getattr(myMath, weight_initializer)
+                self.weight_init_name = w_init
+                w_init_fnc = getattr(myMath, self.weight_init_name)
+                self.weight = w_init_fnc(shape=(size, prev_size))
+                self.biai = w_init_fnc(shape=(1, size))
             except:
                 raise Exception("Error log: Weight initializer unrecognized")
         else:
-            self.__weight = myMath.randomNormal(shape=(size, previous_size))
-            self.__biaises = myMath.randomNormal(shape=(size, 1))
+            self.weight = myMath.randomNormal(shape=(size, prev_size))
+            self.biai = myMath.randomNormal(shape=(size, 1))
             print("Console: layer well initialized by default")
 
     
