@@ -23,7 +23,7 @@ class Network:
 
     __layers = []
 
-    def __init__(self, init_file_path: str, ds_train: np.array, ds_test: np.array):
+    def __init__(self, init_file_path: str):
         try:
             f = open(init_file_path, 'r')
         except:
@@ -33,8 +33,8 @@ class Network:
         dataJson = json.loads(dataStr)
         try:
             self.__learning_rate = float(dataJson["general"]["learningRate"])
-            self.__batch_size = float(dataJson["general"]["batchSize"])
-            self.__epoch = float(dataJson["general"]["epochs"])
+            self.__batch_size = int(dataJson["general"]["batchSize"])
+            self.__epoch = int(dataJson["general"]["epochs"])
             self.__loss_name = dataJson["general"]["loss"]
         except KeyError:
             raise Exception("Error log: Unknow or missing token in the initialisation file")
@@ -64,7 +64,15 @@ class Network:
             x += 1
         return
     
-    
+    def train(self, ds_train: np.array, ds_test: np.array):
+
+        mean_loss_epochs = []
+        accuracy_epochs = []
+        # il faut check la batchsize en amont
+        for i in range(self.__epoch):
+            np.random.shuffle(ds_train)
+            batch = [[ds_train[i] for i in range(j, j+self.__batch_size)] for j in range(len(ds_train)-self.__batch_size)]
+
 
 
     def checkNetwork(self):

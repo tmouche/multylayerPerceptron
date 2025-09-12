@@ -32,12 +32,12 @@ def	visualize(label, data_raw):
 	# 	10-fractal dimension
 	bar = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 
-	M_means = list([])
-	B_means = list([])
-	M_se = list([])
-	B_se = list([])
-	M_worth = list([])
-	B_worth = list([])
+	M_means = []
+	B_means = []
+	M_se = []
+	B_se = []
+	M_worth = []
+	B_worth = []
 
 	x = 0
 	offset = len(bar)
@@ -68,6 +68,35 @@ def	visualize(label, data_raw):
 		B_worth.append(np.mean(temp_B_worth))
 		x += 1
 	
+	M_peri = []
+	B_peri = []
+	M_area = []
+	B_area = []
+	M_concav = []
+	B_concav = []
+	M_concav_point = []
+	B_concav_point = []
+	M_sym = []
+	B_sym = []
+	M_frac_dim = []
+	B_frac_dim = []
+
+	for i in range(len(label)):
+		if label[i] == 'M':
+			M_peri.append(data_raw[i][3])
+			M_area.append(data_raw[i][4])
+			M_concav.append(data_raw[i][7])
+			M_concav_point.append(data_raw[i][8])
+			M_sym.append(data_raw[i][9])
+			M_frac_dim.append(data_raw[i][10])
+		else:
+			B_peri.append(data_raw[i][3])
+			B_area.append(data_raw[i][4])
+			B_concav.append(data_raw[i][7])
+			B_concav_point.append(data_raw[i][8])
+			B_sym.append(data_raw[i][9])
+			B_frac_dim.append(data_raw[i][10])
+
 	bar_width = 0.25
 	axes[0][0].bar(np.arange(len(bar)), M_means, width=bar_width, label="M")
 	axes[0][0].bar(np.arange(len(bar)) + bar_width, B_means, width=bar_width, label="B")
@@ -76,7 +105,7 @@ def	visualize(label, data_raw):
 	axes[0][0].set_xlabel("features")
 	axes[0][0].set_ylabel("value")
 	axes[0][0].set_title("Comparaison of normalized means of means features between M and B")
-	axes[0][0].legend(["Malignant", "Benigh"], loc="lower right")
+	axes[0][0].legend(["Malignant", "Benign"], loc="lower right")
 
 	axes[0][1].bar(np.arange(len(bar)), M_se, width=bar_width, label="M")
 	axes[0][1].bar(np.arange(len(bar)) + bar_width, B_se, width=bar_width, label="B")
@@ -85,7 +114,7 @@ def	visualize(label, data_raw):
 	axes[0][1].set_xlabel("features")
 	axes[0][1].set_ylabel("value")
 	axes[0][1].set_title("Comparaison of normalized means of se features between M and B")
-	axes[0][1].legend(["Malignant", "Benigh"], loc="lower right")
+	axes[0][1].legend(["Malignant", "Benign"], loc="lower right")
 
 	axes[0][2].bar(np.arange(len(bar)), M_worth, width=bar_width, label="M")
 	axes[0][2].bar(np.arange(len(bar)) + bar_width, B_worth, width=bar_width, label="B")
@@ -94,8 +123,19 @@ def	visualize(label, data_raw):
 	axes[0][2].set_xlabel("features")
 	axes[0][2].set_ylabel("value")
 	axes[0][2].set_title("Comparaison of normalized means of worth features between M and B")
-	axes[0][2].legend(["Malignant", "Benigh"], loc="lower right")
+	axes[0][2].legend(["Malignant", "Benign"], loc="lower right")
 
+	axes[1][0].plot(M_peri, M_area, "ro", B_peri, B_area, "bo")
+	axes[1][0].legend(["Malignant", "Benign"], loc="lower right")
+	axes[1][0].set_title("Perimeter on area")
+
+	axes[1][1].plot(M_concav, M_concav_point, "ro", B_concav, B_concav_point, "bo")
+	axes[1][1].legend(["Malignant", "Benign"], loc="lower right")
+	axes[1][1].set_title("Concativy on concave points")
+
+	axes[1][2].plot(M_frac_dim, M_sym, "ro", B_frac_dim, B_sym, "bo")
+	axes[1][2].legend(["Malignant", "Benign"], loc="lower right")
+	axes[1][2].set_title("Fractal dimension on symmetry")
 
 	plt.show()
 

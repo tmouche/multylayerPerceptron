@@ -74,7 +74,6 @@ def main():
         df_test = np.array(pd.read_csv(test_file))
     except:
         print(f"Error log: can not process {test_file}")
-    print(df_train)
     data_train = []
     for i in range(len(df_train)):
         data_train.append([])
@@ -95,7 +94,7 @@ def main():
         data_test[-1][-1] = df_test[i][1:]
     
     try:
-        myNet = Network("init_files.json", data_train, data_test)
+        myNet = Network("init_files.json")
     except Exception as e:
         print(e)
         exit(1)
@@ -105,7 +104,7 @@ def main():
         myNet.option_visu_loss = True
     if visu_option[2] == 1:
         myNet.option_visu_accuracy = True
-    myNet.checkNetwork()
+    myNet.train(data_train, data_test)
     return
 
 

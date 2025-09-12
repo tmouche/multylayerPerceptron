@@ -2,7 +2,7 @@
     "general": {
         "learningRate": 0.005,
         "batchSize": 30,
-        "epochs": 84,
+        "epochs": 80,
         "loss": "crossEntropy"
     },
     "layer": {    
@@ -20,7 +20,7 @@
             "unit": "output",
             "size": 2,
             "activation": "softmax",
-            "initializer": "xaviereNormal"
+            "initializer": "xavierNormal"
         }
     }
 }
