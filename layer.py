@@ -7,6 +7,7 @@ from myMath import myMath
 class Layer:
 
     unit: str = None
+    shape: int = None
 
     activation_name: str = None
     activation_fnc = None
@@ -21,6 +22,8 @@ class Layer:
         a_unit = ["input", "hidden", "output"]
         a_act = ["sigmoid", "reLu", "leakyReLu", "tanh", "step", "sofmax"]
         a_init = ["randomNormal", "randomUniform", "zeros", "ones", "xavierNormal", "xavierUniform", "heNormal", "heUniform"]
+        
+        self.shape = size
 
         if unit in a_unit == False:
             raise Exception(f"Error log: {unit} is not know as unit")
@@ -43,7 +46,7 @@ class Layer:
                 self.weight_init_name = w_init
                 w_init_fnc = getattr(myMath, self.weight_init_name)
                 self.weight = w_init_fnc(shape=(size, prev_size))
-                self.biai = w_init_fnc(shape=(1, size))
+                self.biai = w_init_fnc(shape=(size))
             except:
                 raise Exception("Error log: Weight initializer unrecognized")
         else:
@@ -51,6 +54,8 @@ class Layer:
             self.biai = myMath.randomNormal(shape=(size, 1))
             print("Console: layer well initialized by default")
 
-    
+    def fire(self, input: np.array):
+        res = [sum([self.weight[i][j]*input[j] for j in range(len(input))]) + self.biai[i] for i in range(len(self.weight))]
+        return res
 
     

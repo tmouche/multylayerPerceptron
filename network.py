@@ -68,10 +68,30 @@ class Network:
 
         mean_loss_epochs = []
         accuracy_epochs = []
+        if len(ds_train) < self.__batch_size * 2:
+            raise Exception(f"Error log: data set to small to be used with this batch size")
+        ds_len = int(len(ds_train) / self.__batch_size) * self.__batch_size
         # il faut check la batchsize en amont
-        for i in range(self.__epoch):
+        for e in range(self.__epoch):
             np.random.shuffle(ds_train)
-            batch = [[ds_train[i] for i in range(j, j+self.__batch_size)] for j in range(len(ds_train)-self.__batch_size)]
+            batch = [[ds_train[i] for i in range(j, j+self.__batch_size)] for j in range(0, ds_len, self.__batch_size)]
+            for b in range(len(batch)):
+                for l in range(self.__batch_size):
+                    self.backpropagation(batch[b][l][1], batch[b][l][0])
+            
+    def backpropagation(self, input: np.array, label: np.array):
+        if len(label) != self.__layers[-1].shape:
+            raise Exception("Error log: The label need to have the same size than output layer")
+        act = []
+        zs = []
+        zs.append(self.__layers[0].fire(input))
+        act.append(self.__layers[0].activation_fnc(zs[-1]))
+        for i in range(1, len(self.__layers)):
+            zs.append(self.__layers[i].fire(act[-1]))
+            act.append(self.__layers[0].activation_fnc(zs[-1]))
+        
+        print("res:", act[-1])
+        
 
 
 

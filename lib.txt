@@ -1,3 +1,5 @@
 https://medium.com/data-science/derivative-of-the-softmax-function-and-the-categorical-cross-entropy-loss-ffceefc081d1 -> soft max et cross entropy loss
 https://eli.thegreenplace.net/2016/the-softmax-function-and-its-derivative/
 https://mmuratarat.github.io/2019-01-27/derivation-of-softmax-function
+
+https://www.geeksforgeeks.org/machine-learning/backpropagation-in-neural-network/
