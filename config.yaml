@@ -1,0 +1,18 @@
+general:
+  learning rate: 0.05
+  epochs: 5
+  loss: crossEntropy
+  optimisation: adam
+
+architecture: 
+  input:
+    size: 30
+  hidden:
+    count: 1
+    size: [10,10,10]
+    activation: sigmoid
+    initializer: heNormal
+  ouput:
+    size: 2
+    activation: sigmoid
+    initializer: xavierNormal
