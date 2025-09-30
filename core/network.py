@@ -3,15 +3,21 @@ import yaml
 import numpy as np
 import pandas as pd
 import matplotlib as plt
+import ml_tools.losses as Losses
+import ml_tools.optimizers as Optimizers
 
-from myMath import myMath
-from layer import Layer
+from typing import List, Dict
+from core.layer import Layer
 
 class Network:
     
     option_visu_training: bool = False
     option_visu_loss: bool = False
     option_visu_accuracy: bool = False
+
+    _config = None
+    _config_general = None
+    _config_archi = None
 
     __learning_rate: float = None
     __epoch: int = None
@@ -23,40 +29,40 @@ class Network:
     __loss_name: str = None
     __loss_fnc = None
 
-    __layers = []
+    __layers:List[Layer] = []
 
     def __init_mandatories(self, config: dict):
         try:
-            self.__learning_rate = float(config["general"]["learning rate"])
-            self.__epoch = int(config["general"]["epochs"])
+            self.__learning_rate = float(config["learning rate"])
+            self.__epoch = int(config["epochs"])
         except KeyError:
             raise Exception("Error log: Missing key in the config file")
 
     def __init_optimisation_name(self, config: dict):
         try:
-            self.__optimisation_name = '_'.join(str.lower(config["general"]["optimisation"]).split())
+            self.__optimisation_name = '_'.join(str.lower(config["optimisation"]).split())
         except KeyError:
             self.__optimisation_name = "gradient_descent"
         try:
-            self.__optimisation_fnc = getattr(Network, self.__optimisation_name)
-        except AttributeError:
+            self.__optimisation_fnc = getattr(Optimizers, self.__optimisation_name)
+        except KeyError:
             raise Exception(f"Error log: Optimisation function {self.__optimisation_name} is unknow")
 
     def __init_batch_size(self, config: dict):
         try:
-            self.__batch_size = int(config["general"]["batch size"])
+            self.__batch_size = int(config["batch size"])
         except KeyError:
             if (self.__optimisation_name == "stochastic_gradient_descent"):
                 raise Exception(f"Error log: Missing batch size for the SGD")
 
     def __init_loss_name(self, config: dict):
         try:
-            self.__loss_name = '_'.join(str.lower(config["general"]["loss"]).split())
+            self.__loss_name = '_'.join(str.lower(config["loss"]).split())
         except KeyError:
             raise Exception(f"Error log: The key loss is missing")
         try:
-            self.__loss_fnc = getattr(myMath, self.__loss_name)
-        except AttributeError: 
+            self.__loss_fnc = getattr(Losses, self.__loss_name)
+        except KeyError: 
             raise Exception(f"Error log: Loss function {self.__loss_fnc} is unknow")
         
     def __init_layers(self, archi: dict):
@@ -105,64 +111,31 @@ class Network:
         except:
             raise Exception(f"Error log: Can not open the file {init_file_path}")
         dataStr = f.read()
-        config = yaml.safe_load(dataStr)
-
-        self.__init_mandatories(config)
-        self.__init_optimisation_name(config)
-        self.__init_batch_size(config)
-        self.__init_loss_name(config)
-
         try:
-            archi = config["architecture"]
-        except KeyError:
-            raise Exception(f"Error log: Architecture needed to initialise the network")
-        
-        self.__init_layers(archi)
+            self._config = yaml.safe_load(dataStr)
+            self._config_general = self._config["general"]
+            self._config_archi = self._config["archi"]
+        except:
+            raise Exception(f"Error log: The config file need to be a .yaml with atleast general and archi keys")
+
+        self.__init_mandatories(self._config_general)
+        self.__init_optimisation_name(self._config_general)
+        self.__init_loss_name(self._config_general)
+        self.__init_layers(self._config_archi)
+
         return
     
+    def learn(self, ds_train:List, ds_test:List):
 
-# all_l = config.get("layer", [])
-# if len(all_l) < 3:
-#     raise Exception("Error log: The network needs at least 3 layers")
-# if all_l["0"].get("unit", "") != "input":
-#     raise Exception(f"Error log: layer {0}: unknow name {all_l[0].get('unit')}")
-# x = 1
-# while x < len(all_l):
-#     u = all_l[str(x)]
-#     unit = u.get("unit")
-#     if x < len(all_l)-1 and unit != 'hidden' or x == len(all_l)-1 and unit != 'output':
-#         raise Exception(f"Error log: layer {x}: unknow name {unit}")
-#     s = u.get("size",0)
-#     p_s = all_l[str(x-1)].get("size",0)
-#     act = u.get("activation", "sigmoid")
-#     init = u.get("initializer", "default")
-#     if s < 1 or p_s < 1:
-#         raise Exception(f"Error log: layer {x}: too small")
-#     if x == len(all_l)-1:
-#         if act == "softmax" and s == 1:
-#             raise Exception("Error log: softmax can not be used with less than 2 outputs neurons")
-#         if self.__loss_name == "binaryCrossEntropy" and s != 1:
-#             raise Exception("Error log: The binary cross entropy can not be used with more than 1 output neurons")
-#     self.__layers.append(Layer(s, p_s, unit, act, init))
-#     x += 1
-    
-    def train(self):
-        pass
-
-    def gradient_descent(self):
-        pass
-
-    def stochastic_gradient_descent(self):
-        pass
-
-    def nesterov_momentum(self):
-        pass
-
-    def rms_prop(self):
-        pass
-
-    def adam(self):
-        pass
+        for e in range(self.__epoch):
+            updater:Dict = self.__optimisation_fnc(ds_train, self._config_general)
+            nabla_b = updater["nabla_b"]
+            nabla_w = updater["nabla_w"]
+            for l in range(self.__layers):
+                self.__layers[l].update_biaises(nabla_b[l])
+                self.__layers[l].update_weights(nabla_w[l])
+            self.__learning_rate = updater.get("learning_rate" , self.__learning_rate)
+            
 
     def train(self, ds_train: np.array, ds_test: np.array):
 

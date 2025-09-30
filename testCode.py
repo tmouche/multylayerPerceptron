@@ -1,14 +1,39 @@
 
+from testCode2 import testFunc
 
-class test:
-    @staticmethod
-    def testFunc(msg):
-        print(f"oui c est moi {msg}")
-
-good = getattr(test, "testFunc")
+good = locals()['testFunc']
 good("hector")
 try:
-    wrong = getattr(test, "testFunction")
+    wrong = locals()["testFunction"]
     wrong("Achille")
 except AttributeError:
     print("Catchowww ")
+
+
+
+
+
+# all_l = config.get("layer", [])
+# if len(all_l) < 3:
+#     raise Exception("Error log: The network needs at least 3 layers")
+# if all_l["0"].get("unit", "") != "input":
+#     raise Exception(f"Error log: layer {0}: unknow name {all_l[0].get('unit')}")
+# x = 1
+# while x < len(all_l):
+#     u = all_l[str(x)]
+#     unit = u.get("unit")
+#     if x < len(all_l)-1 and unit != 'hidden' or x == len(all_l)-1 and unit != 'output':
+#         raise Exception(f"Error log: layer {x}: unknow name {unit}")
+#     s = u.get("size",0)
+#     p_s = all_l[str(x-1)].get("size",0)
+#     act = u.get("activation", "sigmoid")
+#     init = u.get("initializer", "default")
+#     if s < 1 or p_s < 1:
+#         raise Exception(f"Error log: layer {x}: too small")
+#     if x == len(all_l)-1:
+#         if act == "softmax" and s == 1:
+#             raise Exception("Error log: softmax can not be used with less than 2 outputs neurons")
+#         if self.__loss_name == "binaryCrossEntropy" and s != 1:
+#             raise Exception("Error log: The binary cross entropy can not be used with more than 1 output neurons")
+#     self.__layers.append(Layer(s, p_s, unit, act, init))
+#     x += 1

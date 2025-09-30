@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib as plt
 
-from network import Network
+from app.network import Network
 
 def main():
     argc = len(sys.argv)

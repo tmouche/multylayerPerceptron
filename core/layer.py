@@ -1,8 +1,11 @@
 
 import numpy as np
-import matplotlib as plt
 
-from myMath import myMath
+import ml_tools.activations as Activations
+import ml_tools.initializers as Initializers
+import ml_tools.primes as Prime
+
+from typing import List
 
 class Layer:
 
@@ -34,28 +37,27 @@ class Layer:
         self.unit = unit
         try:
             self.activation_name = act_fct
-            self.activation_fnc = getattr(myMath, self.activation_name)
+            self.activation_fnc = getattr(Activations, self.activation_name)
             self.prime_name = act_fct + "_prime"
-            self.prime_fnc = getattr(myMath, self.prime_name)
+            self.prime_fnc = getattr(Prime, self.prime_name)
             if act_fct == 'softmax' and unit != 'output':
                 raise Exception("Error log: Softmax can not be the activation function for other than output")
         except:
             raise Exception("Error log: Unrecognized activation function")
-        if w_init != 'default':
-            try:
-                self.weight_init_name = w_init
-                w_init_fnc = getattr(myMath, self.weight_init_name)
-                self.weight = w_init_fnc(shape=(size, prev_size))
-                self.biai = w_init_fnc(shape=(size))
-            except:
-                raise Exception("Error log: Weight initializer unrecognized")
-        else:
-            self.weight = myMath.randomNormal(shape=(size, prev_size))
-            self.biai = myMath.randomNormal(shape=(size, 1))
-            print("Console: layer well initialized by default")
+        try:
+            self.weight_init_name = w_init
+            w_init_fnc = getattr(Initializers, self.weight_init_name)
+            self.weight = w_init_fnc(shape=(size, prev_size))
+            self.biai = w_init_fnc(shape=(size))
+        except:
+            raise Exception("Error log: Weight initializer unrecognized")
 
-    def fire(self, input: np.array):
+    def fire(self, input:List):
         res = [sum([self.weight[i][j]*input[j] for j in range(len(input))]) + self.biai[i] for i in range(len(self.weight))]
         return res
 
-    
+    def update_biaises(self, nabla:List):
+        pass
+
+    def update_weights(self, nabla:List):
+        pass
