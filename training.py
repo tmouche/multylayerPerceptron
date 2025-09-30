@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import matplotlib as plt
 
-from app.network import Network
+from core.network import Network
+from typing import List
 
 def main():
     argc = len(sys.argv)
@@ -76,23 +77,15 @@ def main():
         print(f"Error log: can not process {test_file}")
     data_train = []
     for i in range(len(df_train)):
-        data_train.append([])
-        if df_train[i, 0] == 'M':
-            data_train[-1].append([1])
-        else:
-            data_train[-1].append([0])
-        data_train[-1].append([])
-        data_train[-1][-1] = df_train[i][1:]
+        data_train.append({"label":str, "data":np.array})
+        data_train[-1]["label"] = df_train[i, 0]
+        data_train[-1]["data"] = np.array(df_train[i][1:])
     data_test = []
     for i in range(len(df_test)):
-        data_test.append([])
-        if df_test[i, 0] == 'M':
-            data_test[-1].append([1])
-        else:
-            data_test[-1].append([0])
-        data_test[-1].append([])
-        data_test[-1][-1] = df_test[i][1:]
-    
+        data_test.append({"label":str, "data":np.array})
+        data_test[-1]["label"] = df_test[i, 0]
+        data_test[-1]["data"] = df_test[i][1:] 
+    print(data_train)
     try:
         myNet = Network("init_files.json")
     except Exception as e:

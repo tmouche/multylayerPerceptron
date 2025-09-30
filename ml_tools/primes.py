@@ -24,11 +24,6 @@ def tanh_prime(z):
         return 1-math.pow(Activations.tanh(z), 2)
     return [1-math.pow(Activations.tanh(x), 2) for x in z]
 
-def step_prime(z):
-    if isinstance(z, float):
-        return 0.
-    return np.zeros(len(z))
-
 def softmax_prime(z):
     if isinstance(z, float):
         raise Exception("Error log: Softmax is in/out vector function and doesnot handle scalar")

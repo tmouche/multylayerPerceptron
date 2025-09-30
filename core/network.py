@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib as plt
 import ml_tools.losses as Losses
 import ml_tools.optimizers as Optimizers
+import ml_tools.utils as Utils
+import ml_tools.evaluators as Evaluators
 
 from typing import List, Dict
 from core.layer import Layer
@@ -23,10 +25,15 @@ class Network:
     __epoch: int = None
     __batch_size: int = None
 
-    __optimisation_name: str = None
-    __optimisation_fnc:str = None
+    __error_threshold:float = 0. #A IMPLEMENTER OPTIONNAL
 
-    __loss_name: str = None
+    __optimisation_name:str = None
+    __optimisation_fnc = None
+
+    __evaluator_name:str = None
+    __evaluator_fnc = getattr(Evaluators, "classification") #A IMPLEMENTER
+
+    __loss_name:str = None
     __loss_fnc = None
 
     __layers:List[Layer] = []
@@ -125,7 +132,9 @@ class Network:
 
         return
     
-    def learn(self, ds_train:List, ds_test:List):
+    def learn(self, ds_train:np.array, ds_test:np.array):
+        accuracies:List = []
+        errors:List = []
 
         for e in range(self.__epoch):
             updater:Dict = self.__optimisation_fnc(ds_train, self._config_general)
@@ -135,7 +144,16 @@ class Network:
                 self.__layers[l].update_biaises(nabla_b[l])
                 self.__layers[l].update_weights(nabla_w[l])
             self.__learning_rate = updater.get("learning_rate" , self.__learning_rate)
-            
+            evaluation:Dict = self.__evaluator_fnc(self, ds_test)
+            if self.option_visu_accuracy:
+                accuracies.append(evaluation["accuracy"])
+            if self.option_visu_loss:
+                errors.append(evaluation["error_mean"])
+            if self.option_visu_training:
+                print(f"Info log: epoch {e}/{self.__epoch}: {evaluation}")
+            if self.__error_threshold > 0 and evaluation["error_mean"] < self.__error_threshold:
+                break
+        print("Info log: The training is completed")
 
     def train(self, ds_train: np.array, ds_test: np.array):
 
@@ -165,7 +183,11 @@ class Network:
         
         print("res:", act[-1])
         
-
+    def fire(self, input:np.array) -> np.array:
+        act_input = input
+        for l in self.__layers:
+            act_input = l.fire(act_input)
+        return act_input
 
 
     def checkNetwork(self):

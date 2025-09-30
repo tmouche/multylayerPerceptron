@@ -1,14 +1,22 @@
 
-from testCode2 import testFunc
+import timeit
+import numpy
 
-good = locals()['testFunc']
-good("hector")
-try:
-    wrong = locals()["testFunction"]
-    wrong("Achille")
-except AttributeError:
-    print("Catchowww ")
+import timeit
 
+def test1():
+    c = 2
+    temp = numpy.arange(345)
+    return temp * c
+
+def test2():
+    c = 2
+    temp = numpy.arange(345)
+    new = temp * c
+    return new
+
+print(timeit.timeit(test1))
+print(timeit.timeit(test2))
 
 
 
@@ -33,7 +41,7 @@ except AttributeError:
 #     if x == len(all_l)-1:
 #         if act == "softmax" and s == 1:
 #             raise Exception("Error log: softmax can not be used with less than 2 outputs neurons")
-#         if self.__loss_name == "binaryCrossEntropy" and s != 1:
+#         if __loss_name == "binaryCrossEntropy" and s != 1:
 #             raise Exception("Error log: The binary cross entropy can not be used with more than 1 output neurons")
-#     self.__layers.append(Layer(s, p_s, unit, act, init))
+#     __layers.append(Layer(s, p_s, unit, act, init))
 #     x += 1

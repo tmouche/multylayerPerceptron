@@ -18,15 +18,17 @@ class Layer:
     prime_fnc = None
     weight_init_name: str = None
 
-    weight: np.array = None
-    biai: np.array = None
+    prev_size:int = None
+    weights:np.array = None
+    biaises:np.array = None
 
     def __init__(self, size : int, prev_size : int, unit : str, act_fct : str, w_init : str):
         a_unit = ["input", "hidden", "output"]
-        a_act = ["sigmoid", "relu", "leaky_relu", "tanh", "step", "softmax"]
+        a_act = ["sigmoid", "relu", "leaky_relu", "tanh", "softmax"]
         a_init = ["random_normal", "random_uniform", "zeros", "ones", "xavier_normal", "xavier_uniform", "he_normal", "he_uniform"]
         
         self.shape = size
+        self.prev_size = prev_size
 
         if unit not in a_unit:
             raise Exception(f"Error log: {unit} is not know as unit")
@@ -45,19 +47,21 @@ class Layer:
         except:
             raise Exception("Error log: Unrecognized activation function")
         try:
-            self.weight_init_name = w_init
-            w_init_fnc = getattr(Initializers, self.weight_init_name)
-            self.weight = w_init_fnc(shape=(size, prev_size))
-            self.biai = w_init_fnc(shape=(size))
+            self.weights_init_name = w_init
+            w_init_fnc = getattr(Initializers, self.weights_init_name)
+            self.weights = w_init_fnc(shape=(size,prev_size))
+            self.biaises = w_init_fnc(shape=(size))
         except:
             raise Exception("Error log: Weight initializer unrecognized")
 
-    def fire(self, input:List):
-        res = [sum([self.weight[i][j]*input[j] for j in range(len(input))]) + self.biai[i] for i in range(len(self.weight))]
+    def fire(self, input:np.array) -> np.array:
+        res = np.dot(self.weights, input) + self.biaises
         return res
 
-    def update_biaises(self, nabla:List):
-        pass
+    def update_biaises(self, nabla:np.array, eta:float):
+        nabla *= eta
+        self.biaises -= nabla
 
-    def update_weights(self, nabla:List):
-        pass
+    def update_weights(self, nabla:np.array, eta:float):
+        nabla *= eta
+        self.weights -= nabla

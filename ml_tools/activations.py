@@ -22,11 +22,6 @@ def tanh(z):
         return (math.exp(z)-math.exp(-z))/(math.exp(z)+math.exp(-z))
     return [(math.exp(x)-math.exp(-x))/(math.exp(x)+math.exp(-x)) for x in z]
 
-def step(z):
-    if isinstance(z, float):
-        return 1. if z > 0. else 0.
-    return [1. if x > 0. else 0. for x in z]
-
 def softmax(z):
     if isinstance(z, float):
         raise Exception("Error log: Softmax is in/out vector function and doesnot handle scalar")
