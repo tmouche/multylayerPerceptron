@@ -180,6 +180,11 @@ class Network:
         for i in range(1, len(self.__layers)):
             zs.append(self.__layers[i].fire(act[-1]))
             act.append(self.__layers[0].activation_fnc(zs[-1]))
+        loss = self.__loss_fnc(act[-1], label)
+        prime = self.__layers[-1].prime_fnc(zs[-1]) # ya une opti a faire en envoyant directement l act et pas le zs vu que la derivative se calcule sur le l act et pas sur le z
+        delta = np.dot(loss, prime)
+        # nabla_b = delta
+        # nabla_w = delta * act[-2]
         
         print("res:", act[-1])
         
