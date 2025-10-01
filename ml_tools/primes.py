@@ -2,27 +2,24 @@
 import math
 import numpy as np
 
-import ml_tools.activations as Activations
+def sigmoid_prime(y):
+    y = np.array(y)
+    return y*(1.-y)
 
-def sigmoid_prime(z):
-    if isinstance(z, float):
-        return Activations.sigmoid(z)*(1.-Activations.sigmoid(z))
-    return [Activations.sigmoid(x)*(1.-Activations.sigmoid(x)) for x in z]
+def relu_prime(y):
+    if isinstance(y, float):
+        return 1. if y > 0. else 0.
+    return [1. if x > 0. else 0. for x in y]
 
-def relu_prime(z):
-    if isinstance(z, float):
-        return 1. if z > 0. else 0.
-    return [1. if x > 0. else 0. for x in z]
+def leaky_relu_prime(y):
+    if isinstance(y, float):
+        return 1. if y > 0 else 0.01
+    return [1. if x > 0. else 0.01 for x in y]
 
-def leaky_relu_prime(z):
-    if isinstance(z, float):
-        return 1. if z > 0 else 0.01
-    return [1. if x > 0. else 0.01 for x in z]
-
-def tanh_prime(z):
-    if isinstance(z, float):
-        return 1-math.pow(Activations.tanh(z), 2)
-    return [1-math.pow(Activations.tanh(x), 2) for x in z]
+def tanh_prime(y):
+    if isinstance(y, float):
+        return 1-math.pow(y, 2)
+    return [1-math.pow(x, 2) for x in y]
 
 def softmax_prime(z):
     if isinstance(z, float):

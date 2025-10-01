@@ -7,7 +7,7 @@ import pandas as pd
 import asyncio
 from myMath import myMath
 
-from logger import logger
+from utils.logger import logger
 
 def errorT(act, loss):
     return act*(1-act)*loss

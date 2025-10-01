@@ -77,17 +77,16 @@ def main():
         print(f"Error log: can not process {test_file}")
     data_train = []
     for i in range(len(df_train)):
-        data_train.append({"label":str, "data":np.array})
-        data_train[-1]["label"] = df_train[i, 0]
+        data_train.append({"label":np.array, "data":np.array})
+        data_train[-1]["label"] = [1] if df_train[i, 0] == 'M' else [0]
         data_train[-1]["data"] = np.array(df_train[i][1:])
     data_test = []
     for i in range(len(df_test)):
         data_test.append({"label":str, "data":np.array})
-        data_test[-1]["label"] = df_test[i, 0]
+        data_test[-1]["label"] = [1] if df_train[i, 0] == 'M' else [0]
         data_test[-1]["data"] = df_test[i][1:] 
-    print(data_train)
     try:
-        myNet = Network("init_files.json")
+        myNet = Network("config.yaml")
     except Exception as e:
         print(e)
         exit(1)
@@ -97,7 +96,7 @@ def main():
         myNet.option_visu_loss = True
     if visu_option[2] == 1:
         myNet.option_visu_accuracy = True
-    myNet.train(data_train, data_test)
+    myNet.learn(data_train, data_test)
     return
 
 

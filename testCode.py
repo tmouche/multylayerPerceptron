@@ -4,19 +4,10 @@ import numpy
 
 import timeit
 
-def test1():
-    c = 2
-    temp = numpy.arange(345)
-    return temp * c
 
-def test2():
-    c = 2
-    temp = numpy.arange(345)
-    new = temp * c
-    return new
-
-print(timeit.timeit(test1))
-print(timeit.timeit(test2))
+test = [[1,2,3],[1,2,3],[1,2,3]]
+testz = numpy.zeros(shape=(3,2))
+print(testz)
 
 
 
