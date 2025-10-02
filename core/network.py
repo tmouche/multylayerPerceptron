@@ -159,6 +159,7 @@ class Network:
         self.__init_mandatories(self._config_general)
         self.__init_optimisation(self._config_general)
         self.__init_loss(self._config_general)
+        self.__init_evaluation(self._config_general)
         self.__init_layers(self._config_archi)
         logger.info("Network's initialisation done !!")
 
@@ -206,15 +207,9 @@ class Network:
         idx = len(self.__layers)-2
         while idx >= 0:
             prime = self.__layers[idx].prime_fnc(out[idx])
-            if len(delta) > 1:
-                transposed_delta = np.transpose(delta)
-            else:
-                transposed_delta = delta
-            weighted_delta = self.__layers[idx+1].weights * transposed_delta
-            delta = weighted_delta * prime
-            delta = np.flatiter(delta)
+            delta = np.dot(np.transpose(self.__layers[idx+1].weights), delta) * prime
             self.__layers[idx].nabla_b += delta
-            self.__layers[idx].nabla_w += (delta * prime)
+            self.__layers[idx].nabla_w += np.dot(delta, prime)
             idx-=1
         # dans l idee il faudrait calculer l erreur avec la loss function et la save pour la plot plus tard
         return

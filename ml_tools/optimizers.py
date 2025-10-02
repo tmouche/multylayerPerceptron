@@ -12,11 +12,11 @@ def gradient_descent(network:Network, dataset:List):
     start_time = time.perf_counter()
     for d in dataset:
         network.backpropagation(d["data"], d["label"])
-        if network.option_visu_training:
-            progress += 1
-            progress_bar(progress, total, start_time)
-    network.update_weights(len(dataset), network.__learning_rate)
-    network.update_biaises(len(dataset), network.__learning_rate)
+        # if network.option_visu_training:
+        #     progress += 1
+        #     progress_bar(progress, total, start_time)
+    network.update_weights(len(dataset), network.learning_rate)
+    network.update_biaises(len(dataset), network.learning_rate)
     return
 
 def stochastic_gradient_descent(dataset:List, config:Dict):

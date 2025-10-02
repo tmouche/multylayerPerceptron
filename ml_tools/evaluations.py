@@ -5,7 +5,7 @@ from core.network import Network
 from typing import Dict
 from ml_tools.utils import step
 
-def classificaton(net:Network, ds_test:np.array) -> Dict:
+def classification(net:Network, ds_test:np.array) -> Dict:
     errors = []
     accuracy = 0
     for d in ds_test:

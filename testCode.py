@@ -5,9 +5,11 @@ import numpy
 import timeit
 
 
-test = [[1,2,3],[1,2,3],[1,2,3]]
-testz = numpy.zeros(shape=(3,2))
-print(testz)
+test = [[1,2],[1,2],[1,2]]
+test2 = [2,2]
+test3 = [1,2,3]
+res = numpy.dot(test, test2) + test3
+print(res)
 
 
 

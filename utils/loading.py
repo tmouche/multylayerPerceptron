@@ -4,8 +4,8 @@ import time
 
 def progress_bar(iteration, total, length=50, start_time=None):
     percent = int(100 * (iteration / float(total)))
-    filled = int(length * iteration // total)
-    bar = "#" * filled + "." * (length - filled)
+    filled = length * iteration // total   # pas besoin de int(), ça donne déjà un entier
+    bar = "#" * int(filled) + "." * int(length - filled)
 
     # ETA
     if iteration > 0 and start_time is not None:

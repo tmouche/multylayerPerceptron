@@ -60,4 +60,5 @@ class Layer:
 
     def fire(self, input:np.array) -> np.array:
         res = np.dot(self.weights, input) + self.biaises
+
         return res
