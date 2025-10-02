@@ -5,11 +5,15 @@ from core.network import Network
 from typing import Dict
 from ml_tools.utils import step
 
+from utils.logger import Logger
+
+logger = Logger()
+
 def classification(net:Network, ds_test:np.array) -> Dict:
     errors = []
     accuracy = 0
     for d in ds_test:
-        output = net.fire(d["data"])
+        output = np.array(net.fire(d["data"]))
         errors.append(output-d["label"])
         result = step(output, 0.5)
         if result == d["label"]:

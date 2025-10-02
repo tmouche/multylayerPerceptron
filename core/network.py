@@ -179,11 +179,12 @@ class Network:
         for e in range(self.epoch):
             self.__optimisation_fnc(self, ds_train)
             evaluation:Dict = self.__evaluation_fnc(self, ds_test)
+            # self.checkNetwork()
             if self.option_visu_accuracy:
                 accuracies.append(evaluation["accuracy"])
             if self.option_visu_loss:
                 errors.append(evaluation["error_mean"])
-            if self.option_visu_training:
+            if self.option_visu_training and not e % 100:
                 logger.info(f"Info log: epoch {e}/{self.epoch}: {evaluation}")
             if self.error_threshold > 0 and evaluation["error_mean"] < self.error_threshold:
                 break
@@ -198,7 +199,7 @@ class Network:
         out.append(self.__layers[0].activation_fnc(net))
         for i in range(1, len(self.__layers)):
             net = self.__layers[i].fire(out[-1])
-            out.append(np.array(self.__layers[0].activation_fnc(net[-1])))
+            out.append(np.array(self.__layers[0].activation_fnc(net)))
         loss = out[-1] - label
         prime = self.__layers[-1].prime_fnc(out[-1])
         delta = np.dot(loss, prime)
@@ -206,8 +207,12 @@ class Network:
         self.__layers[-1].nabla_w += (delta * out[-2])
         idx = len(self.__layers)-2
         while idx >= 0:
+            logger.debug(f"for i {idx}:")
             prime = self.__layers[idx].prime_fnc(out[idx])
             delta = np.dot(np.transpose(self.__layers[idx+1].weights), delta) * prime
+            # logger.debug(f"idx:{idx}")
+            # logger.debug(f"size nb {self.__layers[idx].nabla_b}")
+            # logger.debug(f"delta {delta}")
             self.__layers[idx].nabla_b += delta
             self.__layers[idx].nabla_w += np.dot(delta, prime)
             idx-=1
@@ -217,27 +222,27 @@ class Network:
     def fire(self, input:np.array) -> np.array:
         act_input = input
         for l in self.__layers:
-            act_input = l.fire(act_input)
+            act_input = l.activation_fnc(l.fire(act_input))
         return act_input
 
     def update_weights(self, batch_size:int, eta:float):
         for l in self.__layers:
-            l.weights -= ((l.nabla_w / batch_size) * eta)
+            l.weights -= (eta / batch_size)*l.nabla_w 
             l.nabla_w = np.zeros(np.shape(l.nabla_w))
 
     def update_biaises(self, batch_size:int, eta:float):
         for l in self.__layers:
-            l.biaises -= ((l.nabla_b / batch_size) * eta)
+            l.biaises -= (eta / batch_size)*l.nabla_b
             l.nabla_b = np.zeros(np.shape(l.nabla_b))
 
     def checkNetwork(self):
         print("-- NETWORK --")
         print("General options:")
-        print(f" -learning rate: {self.__learning_rate}")
-        print(f" -epochs: {self.__epoch}")
-        print(f" -batch size: {self.__batch_size}")
-        print(f" -optimisation: {self.__optimisation}")
-        print(f" -loss: {self.__loss_name}")
+        print(f" -learning rate: {self.learning_rate}")
+        print(f" -epochs: {self.epoch}")
+        print(f" -batch size: {self.batch_size}")
+        print(f" -optimisation: {self.optimisation_name}")
+        print(f" -loss: {self.loss_name}")
         print()
         print("--LAYERS--")
         for x in self.__layers:
@@ -246,9 +251,9 @@ class Network:
             print(f" -prime name: {x.prime_name}")
             print(f" -weight init name: {x.weight_init_name}")
             print("All weights:")
-            print(x.weight)
+            print(x.weights)
             print("All biai:")
-            print(x.biai)
+            print(x.biaises)
         return
     
 

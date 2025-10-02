@@ -53,12 +53,11 @@ class Layer:
             w_init_fnc = getattr(Initializers, self.weights_init_name)
             self.weights = w_init_fnc(shape=(size,prev_size))
             self.nabla_w = np.zeros(shape=(size, prev_size))
-            self.biaises = w_init_fnc(shape=(size))
-            self.nabla_b = np.zeros(shape=(size))
+            self.biaises = w_init_fnc(shape=(size,1))
+            self.nabla_b = np.zeros(shape=(size,1))
         except:
             raise Exception("Error log: Weight initializer unrecognized")
 
     def fire(self, input:np.array) -> np.array:
         res = np.dot(self.weights, input) + self.biaises
-
         return res

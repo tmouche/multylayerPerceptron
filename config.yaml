@@ -1,6 +1,6 @@
 general:
-  learning rate: 0.05
-  epochs: 10000
+  learning rate: 0.75
+  epochs: 100000
   loss: mean square error
   optimisation: gradient descent
   evaluation: classification
@@ -9,11 +9,11 @@ architecture:
   input:
     size: 30
   hidden:
-    count: 1
-    size: [5]
+    count: 2
+    size: [10,10]
     activation: sigmoid
     initializer: he Normal
   output:
     size: 1
     activation: sigmoid
-    initializer: xavier Normal
+    initializer: he Normal
