@@ -5,7 +5,7 @@ general:
   optimisation: gradient descent
   evaluation: classification
   activation: sigmoid
-  initializer: he normal
+  initialisation: he normal
 
 architecture: 
   input:

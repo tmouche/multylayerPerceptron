@@ -36,11 +36,19 @@ class Network:
     loss_name:str = None
     __loss_fnc = None
 
-    __weights:np.array = None
-    __biaises:np.array = None
+    activation_name:str = None
+    __activation_fnc = None
+    __activation_fnc_prime = None
+
+    initialisation_name:str = None
+    __initialisation_fnc = None
+
+    __weights:np.array = np.array([])
+    __biaises:np.array = np.array([])
 
     __layers:List[Layer] = []
     __shape:List = []
+
     def __init_mandatories(self, config: dict):
         try:
             self.learning_rate = float(config["learning rate"])
@@ -48,7 +56,7 @@ class Network:
         except KeyError:
             logger.error("Missing key in the config file")
             raise Exception()
-
+        
     def __init_optimisation(self, config: dict):
         try:
             self.optimisation_name = '_'.join(str.lower(config["optimisation"]).split())
@@ -73,6 +81,31 @@ class Network:
             logger.error(f"Evaluation function {self.evaluation_name} is unknown")
             raise Exception()
 
+    def __init_activation(self, config:dict):
+        try:
+            self.activation_name = '_'.join(str.lower(config["activation"]).split())
+        except KeyError:
+            self.activation_name = "sigmoid"
+        try:
+            import ml_tools.activations as Activations
+            import ml_tools.primes as Primes
+            self.__activation_fnc = getattr(Activations, self.activation_name)
+            self.__activation_fnc_prime = getattr(Primes, self.activation_name + "_prime")
+        except KeyError:
+            logger.error(f"Activation function {self.activation_name} unknown")
+            raise Exception()
+        
+    def __init_initialisation(self, config:Dict):
+        try:
+            self.initialisation_name = '_'.join(str.lower(config["initialisation"]).split())
+        except KeyError:
+            self.initialisation_name = "he_normal"
+        try:
+            import ml_tools.initialisations as Initialisations
+            self.__initialisation_fnc = getattr(Initialisations, self.initialisation_name)
+        except KeyError:
+            logger.error(f"Initialisation function {self.initialisation_name} is unknown")
+
     def __init_batch_size(self, config: dict):
         try:
             self.__batch_size = int(config["batch size"])
@@ -94,7 +127,11 @@ class Network:
             logger.error(f"Loss function {self.__loss_fnc} is unknow")
             raise Exception()
         
-        
+    def __create_layers(self, size:int, prev_size:int):
+        self.__weights.insert(-1, self.__initialisation_fnc(shape=(size,prev_size)))
+        self.__biaises.insert(-1, self.__initialisation_fnc(shape=(size)))
+
+
     def __init_layers(self, archi: dict):
         try:
             previous_size = int(archi["input"]["size"])
@@ -119,28 +156,11 @@ class Network:
             if hidden_count != len(hidden_size):
                 logger.error("Missmatch between the count and the sizes")
                 raise Exception()
-            try:
-                hidden_act = '_'.join(str.lower(archi["hidden"]["activation"]).split())
-            except KeyError:
-                hidden_act = "sigmoid"
-            try:
-                hidden_init = '_'.join(str.lower(archi["hidden"]["initializer"]).split())
-            except KeyError:
-                hidden_init = "he_normal"
-
             for x in range(hidden_count):
-                self.__layers.append(Layer(hidden_size[x], previous_size, "hidden", hidden_act, hidden_init))
+                self.__create_layers(hidden_size[x], previous_size)
                 previous_size = hidden_size[x]
                 self.__shape.append(previous_size)
-        try:
-            output_act = '_'.join(str.lower(archi["output"]["activation"]).split())
-        except KeyError:
-            output_act = "sigmoid"
-        try:
-            output_init = '_'.join(str.lower(archi["output"]["initializer"]).split())
-        except KeyError:
-            output_init = "he_normal"
-        self.__layers.append(Layer(output_size, previous_size, "output", output_act, output_init))
+        self.__create_layers(output_size, previous_size)
         self.__shape.append(output_size)
 
     def __init__(self, init_file_path: str):
@@ -161,8 +181,10 @@ class Network:
         logger.info("Network's initialisation starting...")
         self.__init_mandatories(self._config_general)
         self.__init_optimisation(self._config_general)
-        self.__init_loss(self._config_general)
         self.__init_evaluation(self._config_general)
+        self.__init_activation(self._config_general)
+        self.__init_initialisation(self._config_general)
+        self.__init_loss(self._config_general)
         self.__init_layers(self._config_archi)
         logger.info("Network's initialisation done !!")
 
@@ -198,6 +220,8 @@ class Network:
         if len(label) != self.__layers[-1].shape:
             logger.info("The label need to have the same size than output layer")
             raise Exception()
+        nabla_w = np.array([])
+        nabla_b = np.array([])
         out = []
         net = self.__layers[0].fire(input)
         out.append(input)
@@ -208,14 +232,14 @@ class Network:
         loss = np.array(out[-1]) - np.array(label)
         prime = self.__layers[-1].prime_fnc(out[-1])
         delta = loss * prime
-        self.__layers[-1].nabla_b += delta
-        self.__layers[-1].nabla_w += np.array([np.array(out[-2])*d for d in delta])
+        nabla_w.insert(-1, [np.array(out[-2])*d for d in delta])
+        nabla_b.insert(-1, delta)
         idx = len(self.__layers)-2
         while idx >= 0:
             prime = self.__layers[idx].prime_fnc(out[idx+1])
             delta = np.dot(np.transpose(self.__layers[idx+1].weights), delta) * prime
-            self.__layers[idx].nabla_b += delta
-            self.__layers[idx].nabla_w += np.array([np.array(out[idx])*d for d in delta])
+            nabla_w.insert(-1, [np.array(out[idx])*d for d in delta])
+            nabla_b.insert(-1, delta)
             idx-=1
         # self.checkNetwork()
         # dans l idee il faudrait calculer l erreur avec la loss function et la save pour la plot plus tard

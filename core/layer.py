@@ -2,7 +2,7 @@
 import numpy as np
 
 import ml_tools.activations as Activations
-import ml_tools.initializers as Initializers
+import ml_tools.initialisations as Initializers
 import ml_tools.primes as Prime
 
 from typing import List
