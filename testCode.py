@@ -5,10 +5,11 @@ import numpy
 import timeit
 
 
-test = [[1,2],[1,2],[1,2]]
-test2 = [2,2]
-test3 = [1,2,3]
-res = numpy.dot(test, test2) + test3
+test = numpy.array([[1,2],[1,2]])
+test2 = numpy.array([[1,2],[1,2]])
+# delta = numpy.dot(test, test2)
+# print(f"delta: {delta}")
+res = test + test2
 print(res)
 
 

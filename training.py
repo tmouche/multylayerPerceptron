@@ -84,7 +84,7 @@ def main():
     for i in range(len(df_test)):
         data_test.append({"label":str, "data":np.array})
         data_test[-1]["label"] = [1] if df_train[i, 0] == 'M' else [0]
-        data_test[-1]["data"] = df_test[i][1:] 
+        data_test[-1]["data"] = np.array(df_test[i][1:]) 
     try:
         myNet = Network("config.yaml")
     except Exception as e:

@@ -7,7 +7,6 @@ logger = Logger()
 
 
 def sigmoid(z):
-    logger.debug(z)
     if isinstance(z, float):
         return 1./(1.+math.exp(-z))
     return [1./(1.+math.exp(-x)) for x in z]

@@ -6,6 +6,9 @@ from typing import List, Dict
 from core.network import Network
 from utils.loading import progress_bar
 
+from utils.logger import Logger
+logger = Logger()
+
 def gradient_descent(network:Network, dataset:List):
     total = len(dataset)
     progress = 0

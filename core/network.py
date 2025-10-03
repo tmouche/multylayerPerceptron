@@ -36,6 +36,9 @@ class Network:
     loss_name:str = None
     __loss_fnc = None
 
+    __weights:np.array = None
+    __biaises:np.array = None
+
     __layers:List[Layer] = []
     __shape:List = []
     def __init_mandatories(self, config: dict):
@@ -177,17 +180,18 @@ class Network:
             raise Exception()
 
         for e in range(self.epoch):
-            self.__optimisation_fnc(self, ds_train)
-            evaluation:Dict = self.__evaluation_fnc(self, ds_test)
             # self.checkNetwork()
+            self.__optimisation_fnc(self, ds_train)
+            evaluation:Dict = self.__evaluation_fnc(self.__loss_fnc, self, ds_test)
             if self.option_visu_accuracy:
                 accuracies.append(evaluation["accuracy"])
             if self.option_visu_loss:
                 errors.append(evaluation["error_mean"])
-            if self.option_visu_training and not e % 100:
+            if self.option_visu_training and not e % 100 or self.epoch < 100:
                 logger.info(f"Info log: epoch {e}/{self.epoch}: {evaluation}")
-            if self.error_threshold > 0 and evaluation["error_mean"] < self.error_threshold:
+            if self.error_threshold > 0 and abs(evaluation["error_mean"]) < self.error_threshold:
                 break
+        logger.info(f"Info log: epoch {e}/{self.epoch}: {evaluation}")
         logger.info("The training is completed")
     
     def backpropagation(self, input: np.array, label: np.array):
@@ -196,43 +200,41 @@ class Network:
             raise Exception()
         out = []
         net = self.__layers[0].fire(input)
+        out.append(input)
         out.append(self.__layers[0].activation_fnc(net))
         for i in range(1, len(self.__layers)):
-            net = self.__layers[i].fire(out[-1])
+            net = np.array(self.__layers[i].fire(out[-1]))
             out.append(np.array(self.__layers[0].activation_fnc(net)))
-        loss = out[-1] - label
+        loss = np.array(out[-1]) - np.array(label)
         prime = self.__layers[-1].prime_fnc(out[-1])
-        delta = np.dot(loss, prime)
+        delta = loss * prime
         self.__layers[-1].nabla_b += delta
-        self.__layers[-1].nabla_w += (delta * out[-2])
+        self.__layers[-1].nabla_w += np.array([np.array(out[-2])*d for d in delta])
         idx = len(self.__layers)-2
         while idx >= 0:
-            logger.debug(f"for i {idx}:")
-            prime = self.__layers[idx].prime_fnc(out[idx])
+            prime = self.__layers[idx].prime_fnc(out[idx+1])
             delta = np.dot(np.transpose(self.__layers[idx+1].weights), delta) * prime
-            # logger.debug(f"idx:{idx}")
-            # logger.debug(f"size nb {self.__layers[idx].nabla_b}")
-            # logger.debug(f"delta {delta}")
             self.__layers[idx].nabla_b += delta
-            self.__layers[idx].nabla_w += np.dot(delta, prime)
+            self.__layers[idx].nabla_w += np.array([np.array(out[idx])*d for d in delta])
             idx-=1
+        # self.checkNetwork()
         # dans l idee il faudrait calculer l erreur avec la loss function et la save pour la plot plus tard
         return
         
     def fire(self, input:np.array) -> np.array:
         act_input = input
         for l in self.__layers:
-            act_input = l.activation_fnc(l.fire(act_input))
+            act_input = np.array(l.activation_fnc(l.fire(act_input)))
         return act_input
 
-    def update_weights(self, batch_size:int, eta:float):
+    def update_weights(self, batch_size:float, eta:float):
         for l in self.__layers:
-            l.weights -= (eta / batch_size)*l.nabla_w 
+            l.weights = np.array(l.weights) - np.array(l.nabla_w)*(eta / batch_size) 
             l.nabla_w = np.zeros(np.shape(l.nabla_w))
 
-    def update_biaises(self, batch_size:int, eta:float):
+    def update_biaises(self, batch_size:float, eta:float):
         for l in self.__layers:
-            l.biaises -= (eta / batch_size)*l.nabla_b
+            l.biaises = np.array(l.biaises) - np.array(l.nabla_b)*(eta / batch_size)
             l.nabla_b = np.zeros(np.shape(l.nabla_b))
 
     def checkNetwork(self):
@@ -252,8 +254,10 @@ class Network:
             print(f" -weight init name: {x.weight_init_name}")
             print("All weights:")
             print(x.weights)
+            print(x.nabla_w)
             print("All biai:")
             print(x.biaises)
+            print(x.nabla_b)
         return
     
 
