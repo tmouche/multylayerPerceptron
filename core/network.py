@@ -43,10 +43,11 @@ class Network:
     initialisation_name:str = None
     __initialisation_fnc = None
 
-    __weights:np.array = np.array([])
-    __biaises:np.array = np.array([])
+    __weights:np.array = None
+    __nabla_w:np.array = None
+    __biaises:np.array = None
+    __nabla_b:np.array = None
 
-    __layers:List[Layer] = []
     __shape:List = []
 
     def __init_mandatories(self, config: dict):
@@ -81,11 +82,14 @@ class Network:
             logger.error(f"Evaluation function {self.evaluation_name} is unknown")
             raise Exception()
 
-    def __init_activation(self, config:dict):
+    def __init_activation(self, config:dict): # A TERME REAJOUTER SOFTMAX AVEC LES CHECKS ASSOCIES
+        a_act = ["sigmoid", "relu", "leaky_relu", "tanh", "softmax"]
         try:
             self.activation_name = '_'.join(str.lower(config["activation"]).split())
         except KeyError:
             self.activation_name = "sigmoid"
+        if self.activation_name not in a_act:
+            raise Exception(f"Error log: {self.activation_name} is not know as activation function")
         try:
             import ml_tools.activations as Activations
             import ml_tools.primes as Primes
@@ -96,10 +100,13 @@ class Network:
             raise Exception()
         
     def __init_initialisation(self, config:Dict):
+        a_init = ["random_normal", "random_uniform", "zeros", "ones", "xavier_normal", "xavier_uniform", "he_normal", "he_uniform"]
         try:
             self.initialisation_name = '_'.join(str.lower(config["initialisation"]).split())
         except KeyError:
             self.initialisation_name = "he_normal"
+        if self.initialisation_name not in a_init:
+            raise Exception(f"Error log: {self.initialisation_name} is not know as weights initializer")
         try:
             import ml_tools.initialisations as Initialisations
             self.__initialisation_fnc = getattr(Initialisations, self.initialisation_name)
@@ -128,11 +135,15 @@ class Network:
             raise Exception()
         
     def __create_layers(self, size:int, prev_size:int):
-        self.__weights.insert(-1, self.__initialisation_fnc(shape=(size,prev_size)))
-        self.__biaises.insert(-1, self.__initialisation_fnc(shape=(size)))
+        self.__weights.append(self.__initialisation_fnc(shape=(size,prev_size)))
+        self.__biaises.append(self.__initialisation_fnc(shape=(size)))
 
 
-    def __init_layers(self, archi: dict):
+    def __init_layers(self, general:dict, archi: dict):
+        self.__weights = []
+        self.__biaises = []
+        self.__nabla_w = []
+        self.__nabla_b = []
         try:
             previous_size = int(archi["input"]["size"])
             output_size = int(archi["output"]["size"])
@@ -185,9 +196,8 @@ class Network:
         self.__init_activation(self._config_general)
         self.__init_initialisation(self._config_general)
         self.__init_loss(self._config_general)
-        self.__init_layers(self._config_archi)
+        self.__init_layers(self._config_general, self._config_archi)
         logger.info("Network's initialisation done !!")
-
         return
     
     def learn(self, ds_train:List, ds_test:List):
@@ -217,29 +227,28 @@ class Network:
         logger.info("The training is completed")
     
     def backpropagation(self, input: np.array, label: np.array):
-        if len(label) != self.__layers[-1].shape:
+        if len(label) != self.__shape[-1]:
             logger.info("The label need to have the same size than output layer")
             raise Exception()
-        nabla_w = np.array([])
-        nabla_b = np.array([])
+
         out = []
-        net = self.__layers[0].fire(input)
+        net = np.array(self.fire_layer(self.__weights[0], self.__biaises[0], input))
         out.append(input)
-        out.append(self.__layers[0].activation_fnc(net))
-        for i in range(1, len(self.__layers)):
-            net = np.array(self.__layers[i].fire(out[-1]))
-            out.append(np.array(self.__layers[0].activation_fnc(net)))
+        out.append(self.__activation_fnc(net))
+        for i in range(1, len(self.__biaises)):
+            net = np.array(self.fire_layer(self.__weights[i], self.__biaises[i], out[-1]))
+            out.append(np.array(self.__activation_fnc(net)))
         loss = np.array(out[-1]) - np.array(label)
-        prime = self.__layers[-1].prime_fnc(out[-1])
+        prime = self.__activation_fnc_prime(out[-1])
         delta = loss * prime
-        nabla_w.insert(-1, [np.array(out[-2])*d for d in delta])
-        nabla_b.insert(-1, delta)
-        idx = len(self.__layers)-2
+        self.__nabla_w.insert(-1, [np.array(out[-2])*d for d in delta])
+        self.__nabla_b.insert(-1, delta)
+        idx = len(self.__shape)-3
         while idx >= 0:
-            prime = self.__layers[idx].prime_fnc(out[idx+1])
-            delta = np.dot(np.transpose(self.__layers[idx+1].weights), delta) * prime
-            nabla_w.insert(-1, [np.array(out[idx])*d for d in delta])
-            nabla_b.insert(-1, delta)
+            prime = self.__activation_fnc_prime(out[idx+1])
+            delta = np.dot(np.transpose(self.__weights[idx+1]), delta) * prime
+            self.__nabla_w.insert(-1, [np.array(out[idx])*d for d in delta])
+            self.__nabla_b.insert(-1, delta)
             idx-=1
         # self.checkNetwork()
         # dans l idee il faudrait calculer l erreur avec la loss function et la save pour la plot plus tard
@@ -247,19 +256,23 @@ class Network:
         
     def fire(self, input:np.array) -> np.array:
         act_input = input
-        for l in self.__layers:
-            act_input = np.array(l.activation_fnc(l.fire(act_input)))
+        for l in range(len(self.__shape) - 1):
+            act_input = np.array(self.__activation_fnc(self.fire_layer(self.__weights[l], self.__biaises[l], act_input)))
         return act_input
+    
+    def fire_layer(self, weight:np.array, biaises:np.array, input:np.array) -> np.array:
+        return np.dot(weight, input) + biaises
 
     def update_weights(self, batch_size:float, eta:float):
-        for l in self.__layers:
-            l.weights = np.array(l.weights) - np.array(l.nabla_w)*(eta / batch_size) 
-            l.nabla_w = np.zeros(np.shape(l.nabla_w))
+        # print(self.__nabla_w)
+        for i in range(len(self.__shape) - 1):
+            self.__weights[i] = np.array(self.__weights[i]) - np.array(self.__nabla_w[i])*(eta / batch_size) 
+        self.__nabla_w = []
 
     def update_biaises(self, batch_size:float, eta:float):
-        for l in self.__layers:
-            l.biaises = np.array(l.biaises) - np.array(l.nabla_b)*(eta / batch_size)
-            l.nabla_b = np.zeros(np.shape(l.nabla_b))
+        for i in range(len(self.__shape) - 1):
+            self.__biaises[i] = np.array(self.__biaises[i]) - np.array(self.__nabla_b[i])*(eta / batch_size) 
+        self.__nabla_b = []
 
     def checkNetwork(self):
         print("-- NETWORK --")
@@ -271,17 +284,10 @@ class Network:
         print(f" -loss: {self.loss_name}")
         print()
         print("--LAYERS--")
-        for x in self.__layers:
-            print("General options:")
-            print(f" -activation name: {x.activation_name}")
-            print(f" -prime name: {x.prime_name}")
-            print(f" -weight init name: {x.weight_init_name}")
-            print("All weights:")
-            print(x.weights)
-            print(x.nabla_w)
-            print("All biai:")
-            print(x.biaises)
-            print(x.nabla_b)
+        print(" -weights:")
+        print(self.__weights)
+        print(" -biaises:")
+        print(self.__biaises)
         return
     
 

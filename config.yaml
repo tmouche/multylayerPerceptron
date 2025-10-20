@@ -1,10 +1,10 @@
 general:
-  learning rate: 0.05
+  learning rate: 0.5
   epochs: 1000
   loss: mean square error
   optimisation: gradient descent
   evaluation: classification
-  activation: sigmoid
+  activation: leaky relu
   initialisation: he normal
 
 architecture: 

@@ -18,8 +18,8 @@ def gradient_descent(network:Network, dataset:List):
         # if network.option_visu_training:
         #     progress += 1
         #     progress_bar(progress, total, start_time)
-    network.update_weights(len(dataset), network.learning_rate)
-    network.update_biaises(len(dataset), network.learning_rate)
+    network.update_weights(1, network.learning_rate)
+    network.update_biaises(1, network.learning_rate)
     return
 
 def stochastic_gradient_descent(dataset:List, config:Dict):
