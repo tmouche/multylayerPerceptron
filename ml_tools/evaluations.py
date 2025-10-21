@@ -21,7 +21,6 @@ def classification(loss_fct, net:Network, ds_test:np.array) -> Dict:
     accuracy = accuracy *100 /len(ds_test)
     output = np.array(output)
     labels = np.array(labels)
-    # logger.debug(output)
     return {"accuracy": accuracy, "error_mean": loss_fct(output, labels)[0]}
 
 

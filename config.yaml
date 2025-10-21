@@ -2,10 +2,11 @@ general:
   learning rate: 0.5
   epochs: 1000
   loss: binary cross entropy
-  optimisation: gradient descent
+  optimisation: stochastic gradient descent
   evaluation: classification
   activation: sigmoid
   initialisation: xavier normal
+  batch size: 35
   
 
 architecture: 

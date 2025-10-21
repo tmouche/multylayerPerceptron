@@ -1,12 +1,12 @@
 
 import yaml
+import time
 import numpy as np
 import pandas as pd
 import matplotlib as plt
 import ml_tools.utils as Utils
 
 from typing import List, Dict
-from core.layer import Layer
 from utils.logger import Logger
 
 logger = Logger()
@@ -119,7 +119,7 @@ class Network:
 
     def __init_batch_size(self, config: dict):
         try:
-            self.__batch_size = int(config["batch size"])
+            self.batch_size = int(config["batch size"])
         except KeyError:
             if (self.optimisation_name == "stochastic_gradient_descent"):
                 logger.error("Missing batch size for the SGD")
@@ -210,6 +210,7 @@ class Network:
         logger.info("Network's initialisation starting...")
         self.__init_mandatories(self._config_general)
         self.__init_optimisation(self._config_general)
+        self.__init_batch_size(self._config_general)
         self.__init_evaluation(self._config_general)
         self.__init_activation(self._config_general)
         self.__init_initialisation(self._config_general)
@@ -229,8 +230,9 @@ class Network:
             logger.error(f"Missmatch between the number of output ({len(ds_train[0]['label'])}) and the number of expected output ({self.__shape[-1]})")
             raise Exception()
 
+        logger.info("Starting training...")
+        start_time = time.perf_counter()
         for e in range(self.epoch):
-            # self.checkNetwork()
             self.__optimisation_fnc(self, ds_train)
             evaluation:Dict = self.__evaluation_fnc(self.__loss_fnc, self, ds_test)
             if self.option_visu_accuracy:
@@ -238,17 +240,17 @@ class Network:
             if self.option_visu_loss:
                 errors.append(evaluation["error_mean"])
             if self.option_visu_training and not e % 100 or self.epoch < 100:
-                logger.info(f"Info log: epoch {e}/{self.epoch}: {evaluation}")
+                logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
             if self.error_threshold > 0 and abs(evaluation["error_mean"]) < self.error_threshold:
                 break
-        logger.info(f"Info log: epoch {e}/{self.epoch}: {evaluation}")
-        logger.info("The training is completed")
+        end_time = time.perf_counter()
+        logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
+        logger.info(f"The training is completed in {end_time - start_time}sec")
     
     def backpropagation(self, input: np.array, label: np.array):
         if len(label) != self.__shape[-1]:
             logger.info("The label need to have the same size than output layer")
             raise Exception()
-
         out = []
         out.append(input)
         net = input
@@ -270,7 +272,6 @@ class Network:
             self.__nabla_w[idx] = np.array(self.__nabla_w[idx]) + np.outer(np.array(delta), np.array(out[idx]))
             self.__nabla_b[idx] = np.array(self.__nabla_b[idx]) + delta
             idx-=1
-        # self.checkNetwork()
         return
         
     def fire(self, input:np.array) -> np.array:
