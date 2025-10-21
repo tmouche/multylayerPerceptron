@@ -12,7 +12,7 @@ def mean_absolute_error(y: np.array, e: np.array):
         return math.abs(e-y)
     return (1/len(y))/sum([abs(e[i]-y[i]) for i in range(len(y))])
     
-def binary_cross_entropy(y: np.array, e: np.array):
+def binary_cross_entropy(y:np.array, e:np.array):
     if isinstance(y, float):
         return -(e*math.log(y)+(1-e)*math.log(1-y))
     return -1/len(y)*sum([e[i]*math.log(y[i])+(1-e[i])*math.log(1-y[i]) for i in range(len(y))])

@@ -1,17 +1,19 @@
 general:
   learning rate: 0.5
   epochs: 1000
-  loss: mean square error
+  loss: binary cross entropy
   optimisation: gradient descent
   evaluation: classification
-  activation: leaky relu
-  initialisation: he normal
+  activation: sigmoid
+  initialisation: xavier normal
+  
 
 architecture: 
   input:
     size: 30
   hidden:
     count: 1
-    size: [25]
+    size: [10]
   output:
     size: 1
+    activation: sigmoid

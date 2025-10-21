@@ -96,7 +96,7 @@ def main():
         myNet.option_visu_loss = True
     if visu_option[2] == 1:
         myNet.option_visu_accuracy = True
-    myNet.learn(data_train, data_test)
+    myNet.learn(data_train,data_test)
     return
 
 
