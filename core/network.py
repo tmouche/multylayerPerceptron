@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 import matplotlib as plt
 import ml_tools.utils as Utils
+import ml_tools.activations as Activations
+
 
 from typing import List, Dict
 from utils.logger import Logger
-
 logger = Logger()
 
 class Network:
@@ -37,12 +38,10 @@ class Network:
     __loss_fnc = None
 
     activation_name:str = None
-    __activation_fnc = None
-    __activation_fnc_prime = None
+    __activation = None
 
     output_activation_name:str = None
-    __output_activation_fnc = None
-    __output_activation_fnc_prime = None
+    __output_activation = None
 
     initialisation_name:str = None
     __initialisation_fnc = None
@@ -53,6 +52,33 @@ class Network:
     __nabla_b:np.array = None
 
     __shape:List = []
+
+    def __init__(self, init_file_path: str):
+        try:
+            f = open(init_file_path, 'r')
+        except:
+            logger.error(f"Can not open the file {init_file_path}")
+            raise Exception()
+        dataStr = f.read()
+        try:
+            self._config = yaml.safe_load(dataStr)
+            self._config_general = self._config["general"]
+            self._config_archi = self._config["architecture"]
+        except:
+            logger.error(f"The config file need to be a .yaml with atleast general and architecture keys")
+            raise Exception()
+
+        logger.info("Network's initialisation starting...")
+        self.__init_mandatories(self._config_general)
+        self.__init_optimisation(self._config_general)
+        self.__init_batch_size(self._config_general)
+        self.__init_evaluation(self._config_general)
+        self.__init_loss(self._config_general)
+        self.__init_activation(self._config_general)
+        self.__init_initialisation(self._config_general)
+        self.__init_layers(self._config_archi)
+        logger.info("Network's initialisation done !!")
+        return
 
     def __init_mandatories(self, config: dict):
         try:
@@ -86,20 +112,17 @@ class Network:
             logger.error(f"Evaluation function {self.evaluation_name} is unknown")
             raise Exception()
 
-    def __init_activation(self, config:dict): # A TERME REAJOUTER SOFTMAX AVEC LES CHECKS ASSOCIES
-        a_act = ["sigmoid", "relu", "leaky_relu", "tanh", "softmax"]
+    def __init_activation(self, config:dict):
         try:
             self.activation_name = '_'.join(str.lower(config["activation"]).split())
         except KeyError:
             self.activation_name = "sigmoid"
-        if self.activation_name not in a_act:
-            raise Exception(f"Error log: {self.activation_name} is not know as activation function")
+        if self.activation_name == "softmax":
+            logger.error("Softmax can not be used as activation for hidden layers")
+            raise Exception()
         try:
-            import ml_tools.activations as Activations
-            import ml_tools.primes as Primes
-            self.__activation_fnc = getattr(Activations, self.activation_name)
-            self.__activation_fnc_prime = getattr(Primes, self.activation_name + "_prime")
-        except KeyError:
+            self.__activation = getattr(Activations, self.activation_name)(self.loss_name)
+        except AttributeError:
             logger.error(f"Activation function {self.activation_name} unknown")
             raise Exception()
         
@@ -109,12 +132,10 @@ class Network:
             self.initialisation_name = '_'.join(str.lower(config["initialisation"]).split())
         except KeyError:
             self.initialisation_name = "he_normal"
-        if self.initialisation_name not in a_init:
-            raise Exception(f"Error log: {self.initialisation_name} is not know as weights initializer")
         try:
             import ml_tools.initialisations as Initialisations
             self.__initialisation_fnc = getattr(Initialisations, self.initialisation_name)
-        except KeyError:
+        except AttributeError:
             logger.error(f"Initialisation function {self.initialisation_name} is unknown")
 
     def __init_batch_size(self, config: dict):
@@ -137,13 +158,6 @@ class Network:
         except KeyError:
             logger.error(f"Loss function {self.__loss_fnc} is unknow")
             raise Exception()
-        
-    def __create_layers(self, size:int, prev_size:int):
-        self.__weights.append(self.__initialisation_fnc(shape=(size,prev_size)))
-        self.__biaises.append(self.__initialisation_fnc(shape=(size)))
-        self.__nabla_w.append(np.full((size,prev_size), 0.))
-        self.__nabla_b.append(np.full((size), 0.))
-
 
     def __init_layers(self, archi: dict):
         self.__weights = []
@@ -183,41 +197,20 @@ class Network:
             self.output_activation_name = '_'.join(str.lower(archi["output"]["activation"]).split())
         except KeyError:
             self.output_activation_name = self.activation_name
+        if self.output_activation_name == "softmax" and output_size < 2:
+            logger.error("Softmax needs atleast two output neurons")
+            raise Exception()
         try:
-            import ml_tools.activations as Activations
-            import ml_tools.primes as Primes
-            self.__output_activation_fnc = getattr(Activations, self.output_activation_name)
-            self.__output_activation_fnc_prime = getattr(Primes, self.output_activation_name + "_prime")
-        except KeyError:
+            self.__output_activation = getattr(Activations, self.output_activation_name)(self.loss_name)
+        except AttributeError:
             logger.error(f"Activation function {self.output_activation_name} unknown")
             raise Exception()
-
-    def __init__(self, init_file_path: str):
-        try:
-            f = open(init_file_path, 'r')
-        except:
-            logger.error(f"Can not open the file {init_file_path}")
-            raise Exception()
-        dataStr = f.read()
-        try:
-            self._config = yaml.safe_load(dataStr)
-            self._config_general = self._config["general"]
-            self._config_archi = self._config["architecture"]
-        except:
-            logger.error(f"The config file need to be a .yaml with atleast general and architecture keys")
-            raise Exception()
-
-        logger.info("Network's initialisation starting...")
-        self.__init_mandatories(self._config_general)
-        self.__init_optimisation(self._config_general)
-        self.__init_batch_size(self._config_general)
-        self.__init_evaluation(self._config_general)
-        self.__init_activation(self._config_general)
-        self.__init_initialisation(self._config_general)
-        self.__init_loss(self._config_general)
-        self.__init_layers(self._config_archi)
-        logger.info("Network's initialisation done !!")
-        return
+    
+    def __create_layers(self, size:int, prev_size:int):
+        self.__weights.append(self.__initialisation_fnc(shape=(size,prev_size)))
+        self.__biaises.append(self.__initialisation_fnc(shape=(size)))
+        self.__nabla_w.append(np.full((size,prev_size), 0.))
+        self.__nabla_b.append(np.full((size), 0.))
     
     def learn(self, ds_train:List, ds_test:List):
         accuracies:List = []
@@ -235,8 +228,9 @@ class Network:
         for e in range(self.epoch):
             self.__optimisation_fnc(self, ds_train)
             evaluation:Dict = self.__evaluation_fnc(self.__loss_fnc, self, ds_test)
+            accuracies.append(evaluation["accuracy"])
             if self.option_visu_accuracy:
-                accuracies.append(evaluation["accuracy"])
+                pass
             if self.option_visu_loss:
                 errors.append(evaluation["error_mean"])
             if self.option_visu_training and not e % 100 or self.epoch < 100:
@@ -246,6 +240,7 @@ class Network:
         end_time = time.perf_counter()
         logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
         logger.info(f"The training is completed in {end_time - start_time}sec")
+        return accuracies, errors
     
     def backpropagation(self, input: np.array, label: np.array):
         if len(label) != self.__shape[-1]:
@@ -257,17 +252,15 @@ class Network:
         size = len(self.__shape)
         for i in range(size - 2):
             net = self.fire_layer(self.__weights[i], self.__biaises[i], out[-1])
-            out.append(self.__activation_fnc(net))
+            out.append(self.__activation.activation(net))
         net = self.fire_layer(self.__weights[-1], self.__biaises[-1], out[-1])
-        out.append(self.__output_activation_fnc(net))
-        grad_loss = np.array(out[-1]) - np.array(label)
-        prime = np.array(self.__output_activation_fnc_prime(out[-1]))
-        delta = grad_loss * prime
+        out.append(self.__output_activation.activation(net))
+        delta = self.__activation.delta(out[-1], label)
         self.__nabla_w[-1] = np.array(self.__nabla_w[-1]) + np.outer(np.array(delta), np.array(out[-2]))
         self.__nabla_b[-1] = np.array(self.__nabla_b[-1]) + delta
         idx = len(self.__shape)-3
         while idx >= 0:
-            prime = self.__activation_fnc_prime(out[idx+1])
+            prime = self.__activation.prime(out[idx+1])
             delta = np.dot(np.transpose(self.__weights[idx+1]), delta) * prime
             self.__nabla_w[idx] = np.array(self.__nabla_w[idx]) + np.outer(np.array(delta), np.array(out[idx]))
             self.__nabla_b[idx] = np.array(self.__nabla_b[idx]) + delta
@@ -277,8 +270,8 @@ class Network:
     def fire(self, input:np.array) -> np.array:
         act_input = input
         for l in range(len(self.__shape) - 2):
-            act_input = np.array(self.__activation_fnc(self.fire_layer(self.__weights[l], self.__biaises[l], act_input)))
-        act_input = np.array(self.__output_activation_fnc(self.fire_layer(self.__weights[-1], self.__biaises[-1], act_input)))
+            act_input = np.array(self.__activation.activation(self.fire_layer(self.__weights[l], self.__biaises[l], act_input)))
+        act_input = np.array(self.__output_activation.activation(self.fire_layer(self.__weights[-1], self.__biaises[-1], act_input)))
         return act_input
     
     def fire_layer(self, weight:np.array, biaises:np.array, input:np.array) -> np.array:

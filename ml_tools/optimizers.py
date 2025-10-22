@@ -25,8 +25,8 @@ def stochastic_gradient_descent(network:Network, dataset:List):
     for b in range(len(batch)):
         for l in range(network.batch_size):
             network.backpropagation(batch[b][l]["data"], batch[b][l]["label"])
-            network.update_weights(network.batch_size, network.learning_rate)
-            network.update_biaises(network.batch_size, network.learning_rate)
+        network.update_weights(network.batch_size, network.learning_rate)
+        network.update_biaises(network.batch_size, network.learning_rate)
 
 def nesterov_momentum(dataset:List, config:Dict):
     pass

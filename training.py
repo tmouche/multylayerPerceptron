@@ -2,7 +2,7 @@
 import sys
 import numpy as np
 import pandas as pd
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 from core.network import Network
 from typing import List
@@ -88,15 +88,32 @@ def main():
     try:
         myNet = Network("config.yaml")
     except Exception as e:
-        print(e)
+        print("[FATAL] -> The network's configuration failed")
+        exit(1)
+    try:
+        myNet2 = Network("config2.yaml")
+    except Exception as e:
+        print("[FATAL] -> The network's configuration failed")
         exit(1)
     if visu_option[0] == 1:
         myNet.option_visu_training = True
+        myNet2.option_visu_training = True
     if visu_option[1] == 1:
         myNet.option_visu_loss = True
+        myNet2.option_visu_loss = True
     if visu_option[2] == 1:
         myNet.option_visu_accuracy = True
-    myNet.learn(data_train,data_test)
+        myNet2.option_visu_accuracy = True
+    accuracies, errors = myNet.learn(data_train,data_test)
+    accuracies2, errors2 = myNet2.learn(data_train,data_test)
+
+    plt.plot(range(1000), accuracies, "r", range(1000), accuracies2, "b")
+    plt.xlabel("epoch")
+    plt.xticks(np.arange(0, 1000, 100))
+    plt.yticks(np.arange(0, 100, 10))
+    plt.ylabel("accuracies")
+    plt.title("evolution of accuracies through epoch")
+    plt.show()
     return
 
 
