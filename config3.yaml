@@ -2,10 +2,11 @@ general:
   learning rate: 0.5
   epochs: 1000
   loss: binary cross entropy
-  optimisation: full batch nag
+  optimisation: stochatic nag
   evaluation: classification
   activation: sigmoid
   initialisation: xavier normal
+  
   
 
 architecture: 

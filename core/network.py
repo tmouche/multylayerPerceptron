@@ -1,7 +1,7 @@
 
 import yaml
 import time
-import numpy as np
+import numpy
 import pandas as pd
 import matplotlib as plt
 import ml_tools.utils as Utils
@@ -12,8 +12,14 @@ from typing import List, Dict
 from utils.logger import Logger
 logger = Logger()
 
+# ==========================================================
+# NETWORK CLASS
+# ==========================================================
 class Network:
     
+    # ======================================================
+    # --- 1. CLASS ATTRIBUTES / CONFIG DEFAULTS ---
+    # =====================================================
     option_visu_training: bool = False
     option_visu_loss: bool = False
     option_visu_accuracy: bool = False
@@ -21,13 +27,12 @@ class Network:
     learning_rate: float = None
     epoch: int = None
     batch_size: int = None
+    beta_1:float = 0.9
+    beta_2:float = 0.9
 
     error_threshold:float = 0. #A IMPLEMENTER OPTIONNAL
-    
-    _config = None
-    _config_general = None
-    _config_archi = None
 
+    # Components and functions
     optimisation_name:str = None
     __optimisation_fnc = None
 
@@ -46,39 +51,52 @@ class Network:
     initialisation_name:str = None
     __initialisation_fnc = None
 
-    __weights:np.array = None
-    __nabla_w:np.array = None
-    __biaises:np.array = None
-    __nabla_b:np.array = None
+    # Network structure
+    __weights:List = None
+    __biaises:List = None
+    __shape:List = None
 
-    __shape:List = []
-
+    # ======================================================
+    # --- 2. INITIALIZATION ---
+    # ======================================================
     def __init__(self, init_file_path: str):
+        """
+        Load YAML config and initialize network structure and parameters.
+        """
+        config_general, config_archi = self.__load_config(init_file_path)
+
+        logger.info("Network initialization starting...")
+        logger.info("Configuration starting...")
+        self.__init_mandatories(config_general)
+        self.__init_optimisation(config_general)
+        self.__init_evaluation(config_general)
+        self.__init_loss(config_general)
+        self.__init_activation(config_general)
+        self.__init_initialisation(config_general)
+        logger.info("Configuration complete...")
+        logger.info("Layers initialization starting...")
+        self.__init_layers(config_archi)
+        logger.info("Layers initialization complete...")
+        logger.info("Network initialization complete...")
+
+    # ------------------------------------------------------
+    # --- 2.1 CONFIGURATION INITIALISATION ---
+    # ------------------------------------------------------
+    def __load_config(self, path:str):
         try:
-            f = open(init_file_path, 'r')
+            f = open(path, 'r')
         except:
-            logger.error(f"Can not open the file {init_file_path}")
+            logger.error(f"Can not open the file {path}")
             raise Exception()
         dataStr = f.read()
         try:
-            self._config = yaml.safe_load(dataStr)
-            self._config_general = self._config["general"]
-            self._config_archi = self._config["architecture"]
+            config = yaml.safe_load(dataStr)
+            config_general = config["general"]
+            config_archi = config["architecture"]
         except:
             logger.error(f"The config file need to be a .yaml with atleast general and architecture keys")
             raise Exception()
-
-        logger.info("Network's initialisation starting...")
-        self.__init_mandatories(self._config_general)
-        self.__init_optimisation(self._config_general)
-        self.__init_batch_size(self._config_general)
-        self.__init_evaluation(self._config_general)
-        self.__init_loss(self._config_general)
-        self.__init_activation(self._config_general)
-        self.__init_initialisation(self._config_general)
-        self.__init_layers(self._config_archi)
-        logger.info("Network's initialisation done !!")
-        return
+        return config_general, config_archi
 
     def __init_mandatories(self, config: dict):
         try:
@@ -87,6 +105,7 @@ class Network:
         except KeyError:
             logger.error("Missing key in the config file")
             raise Exception()
+        logger.info("Mandatories OK..")
         
     def __init_optimisation(self, config: dict):
         try:
@@ -94,11 +113,29 @@ class Network:
         except KeyError:
             self.optimisation_name = "gradient_descent"
         try:
-            import ml_tools.optimizers as Optimizers
-            self.__optimisation_fnc = getattr(Optimizers, self.optimisation_name)
+            self.__optimisation_fnc = getattr(self, self.optimisation_name)
         except KeyError:
             logger.error(f"Optimisation function {self.optimisation_name} is unknown")
             raise Exception()
+        try:
+            self.batch_size = int(config["batch size"])
+        except KeyError:
+            if (self.optimisation_name == "stochastic_gradient_descent"):
+                logger.error("Missing batch size for the SGD")
+                raise Exception()
+        try:
+            self.beta_1 = float(config["beta 1"])
+        except KeyError:
+            if self.optimisation_name == "nesterov momentum" or self.optimisation_name == "adam":
+                logger.error("Missing beta 1 for the optimizer")
+                raise Exception()
+        try:
+            self.beta_2 = float(config["beta 2"])
+        except KeyError:
+            if self.optimisation_name == "rms_prop" or self.optimisation_name == "adam":
+                logger.error("Missing beta 2 for the optimizer")
+                raise Exception()
+        logger.info("Optimisation OK..")
         
     def __init_evaluation(self, config:dict):
         try:
@@ -111,6 +148,7 @@ class Network:
         except:
             logger.error(f"Evaluation function {self.evaluation_name} is unknown")
             raise Exception()
+        logger.info("Evaluation OK..")
 
     def __init_activation(self, config:dict):
         try:
@@ -125,9 +163,9 @@ class Network:
         except AttributeError:
             logger.error(f"Activation function {self.activation_name} unknown")
             raise Exception()
+        logger.info("Activation OK..")
         
     def __init_initialisation(self, config:Dict):
-        a_init = ["random_normal", "random_uniform", "zeros", "ones", "xavier_normal", "xavier_uniform", "he_normal", "he_uniform"]
         try:
             self.initialisation_name = '_'.join(str.lower(config["initialisation"]).split())
         except KeyError:
@@ -137,14 +175,7 @@ class Network:
             self.__initialisation_fnc = getattr(Initialisations, self.initialisation_name)
         except AttributeError:
             logger.error(f"Initialisation function {self.initialisation_name} is unknown")
-
-    def __init_batch_size(self, config: dict):
-        try:
-            self.batch_size = int(config["batch size"])
-        except KeyError:
-            if (self.optimisation_name == "stochastic_gradient_descent"):
-                logger.error("Missing batch size for the SGD")
-                raise Exception()
+        logger.info("Initialisation OK..")
 
     def __init_loss(self, config: dict):
         try:
@@ -158,12 +189,15 @@ class Network:
         except KeyError:
             logger.error(f"Loss function {self.__loss_fnc} is unknow")
             raise Exception()
+        logger.info("loss OK..")
 
+    # ------------------------------------------------------
+    # --- 2.2 LAYER INITIALIZATION ---
+    # ------------------------------------------------------
     def __init_layers(self, archi: dict):
         self.__weights = []
         self.__biaises = []
-        self.__nabla_w = []
-        self.__nabla_b = []
+        self.__shape = []
         try:
             previous_size = int(archi["input"]["size"])
             output_size = int(archi["output"]["size"])
@@ -209,9 +243,10 @@ class Network:
     def __create_layers(self, size:int, prev_size:int):
         self.__weights.append(self.__initialisation_fnc(shape=(size,prev_size)))
         self.__biaises.append(self.__initialisation_fnc(shape=(size)))
-        self.__nabla_w.append(np.full((size,prev_size), 0.))
-        self.__nabla_b.append(np.full((size), 0.))
-    
+
+    # ======================================================
+    # --- 3. TRAINING METHODS ---
+    # ======================================================
     def learn(self, ds_train:List, ds_test:List):
         accuracies:List = []
         errors:List = []
@@ -226,7 +261,7 @@ class Network:
         logger.info("Starting training...")
         start_time = time.perf_counter()
         for e in range(self.epoch):
-            self.__optimisation_fnc(self, ds_train)
+            self.__optimisation_fnc(ds_train)
             evaluation:Dict = self.__evaluation_fnc(self.__loss_fnc, self, ds_test)
             accuracies.append(evaluation["accuracy"])
             if self.option_visu_accuracy:
@@ -235,14 +270,57 @@ class Network:
                 errors.append(evaluation["error_mean"])
             if self.option_visu_training and not e % 100 or self.epoch < 100:
                 logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
-            if self.error_threshold > 0 and abs(evaluation["error_mean"]) < self.error_threshold:
+            if self.error_threshold > 0 and abs(evaluation["error_mean"]) < self.error_threshold or evaluation["accuracy"] == 100.:
                 break
         end_time = time.perf_counter()
         logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
         logger.info(f"The training is completed in {end_time - start_time}sec")
         return accuracies, errors
+
+    # ------------------------------------------------------
+    # --- 3.1 GRADIENT DESCEND METHODS ---
+    # ------------------------------------------------------
+    def full_batch_gradient_descent(self, dataset:List):
+        nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        nabla_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        for d in dataset:
+            delta_nabla_w, delta_nabla_b = self.descend_back_propagation(d["data"], d["label"])
+            for i in range(len(self.__shape) - 1):
+                nabla_w[i] = numpy.array(nabla_w[i]) + numpy.array(delta_nabla_w[i])
+                nabla_b[i] = numpy.array(nabla_b[i]) + numpy.array(delta_nabla_b[i]) 
+        for i in range(len(self.__shape) - 1):
+            self.__weights[i] = numpy.array(self.__weights[i]) - self.learning_rate * (numpy.array(nabla_w[i]) / len(dataset))
+            self.__biaises[i] = numpy.array(self.__biaises[i]) - self.learning_rate * (numpy.array(nabla_b[i]) / len(dataset))
+        return
     
-    def backpropagation(self, input: np.array, label: np.array):
+    def mini_batch_gradient_descent(self, dataset:List):
+        nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        nabla_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        batch = self.prepare_batch(dataset)
+        for b in range(len(batch)):
+            for l in range(self.batch_size):
+                delta_nabla_w, delta_nabla_b = self.descend_back_propagation(batch[b][l]["data"], batch[b][l]["label"])
+                for i in range(len(self.__shape) - 1):
+                    nabla_w[i] = numpy.array(nabla_w[i]) + numpy.array(delta_nabla_w[i])
+                    nabla_b[i] = numpy.array(nabla_b[i]) + numpy.array(delta_nabla_b[i])
+            for i in range(len(self.__shape) - 1):
+                self.__weights[i] = numpy.array(self.__weights[i]) - self.learning_rate * (numpy.array(nabla_w[i]) / self.batch_size)
+                self.__biaises[i] = numpy.array(self.__biaises[i]) - self.learning_rate * (numpy.array(nabla_b[i]) / self.batch_size)
+
+    def stochatic_gradient_descent(self, dataset:List):
+        for d in dataset:
+            nabla_w, nabla_b = self.descend_back_propagation(d["data"], d["label"])
+            for i in range(len(self.__shape) - 1):
+                self.__weights[i] = numpy.array(self.__weights[i]) - self.learning_rate * (numpy.array(nabla_w[i]) / 1)
+                self.__biaises[i] = numpy.array(self.__biaises[i]) - self.learning_rate * (numpy.array(nabla_b[i]) / 1)
+        return
+    
+    #
+    # --- 3.1.X GRADIENT DESCEND UTILS ---
+    #
+    def descend_back_propagation(self, input:List, label:List, weights:List, biaises:List):
+        dn_w = []
+        dn_b = []
         if len(label) != self.__shape[-1]:
             logger.info("The label need to have the same size than output layer")
             raise Exception()
@@ -251,44 +329,135 @@ class Network:
         net = input
         size = len(self.__shape)
         for i in range(size - 2):
-            net = self.fire_layer(self.__weights[i], self.__biaises[i], out[-1])
+            net = self.fire_layer(weights[i], biaises[i], out[-1])
             out.append(self.__activation.activation(net))
-        net = self.fire_layer(self.__weights[-1], self.__biaises[-1], out[-1])
+        net = self.fire_layer(weights[-1], biaises[-1], out[-1])
         out.append(self.__output_activation.activation(net))
         delta = self.__activation.delta(out[-1], label)
-        self.__nabla_w[-1] = np.array(self.__nabla_w[-1]) + np.outer(np.array(delta), np.array(out[-2]))
-        self.__nabla_b[-1] = np.array(self.__nabla_b[-1]) + delta
+        dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[-2])))
+        dn_b.insert(0, delta)
         idx = len(self.__shape)-3
         while idx >= 0:
             prime = self.__activation.prime(out[idx+1])
-            delta = np.dot(np.transpose(self.__weights[idx+1]), delta) * prime
-            self.__nabla_w[idx] = np.array(self.__nabla_w[idx]) + np.outer(np.array(delta), np.array(out[idx]))
-            self.__nabla_b[idx] = np.array(self.__nabla_b[idx]) + delta
+            delta = numpy.dot(numpy.transpose(weights[idx+1]), delta) * prime
+            dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[idx])))
+            dn_b.insert(0, delta) 
             idx-=1
-        return
-        
-    def fire(self, input:np.array) -> np.array:
-        act_input = input
-        for l in range(len(self.__shape) - 2):
-            act_input = np.array(self.__activation.activation(self.fire_layer(self.__weights[l], self.__biaises[l], act_input)))
-        act_input = np.array(self.__output_activation.activation(self.fire_layer(self.__weights[-1], self.__biaises[-1], act_input)))
-        return act_input
+        return dn_w, dn_b
     
-    def fire_layer(self, weight:np.array, biaises:np.array, input:np.array) -> np.array:
-        res = [np.dot(w, input) + b for w,b in zip(weight, biaises)]
+    # ------------------------------------------------------
+    # --- 3.2 GRADIENT ACCELERATED METHODS ---
+    # ------------------------------------------------------
+    def full_batch_nag(self, dataset:List):
+        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        ahead_w = [[] for l in range(len(self.__shape) - 1)]
+        ahead_b = [[] for l in range(len(self.__shape) - 1)]
+        for i in range(len(self.__shape) - 1):
+            ahead_w[i] = numpy.array(self.__weights[i]) - self.beta_1 * velocity_w[i]
+            ahead_b[i] = numpy.array(self.__biaises[i]) - self.beta_1 * velocity_b[i]
+        nabla_w, nabla_b = self.back_propagation(dataset, ahead_w, ahead_b)
+        velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, len(dataset))
+    
+    def mini_batch_nag(self, dataset:List):
+        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        ahead_w = [[] for l in range(len(self.__shape) - 1)]
+        ahead_b = [[] for l in range(len(self.__shape) - 1)]
+        batch = self.prepare_batch(dataset)
+        for b in range(len(batch)):
+            for i in range(len(self.__shape) - 1):
+                ahead_w[i] = numpy.array(self.__weights[i]) - self.beta_1 * velocity_w[i]
+                ahead_b[i] = numpy.array(self.__biaises[i]) - self.beta_1 * velocity_b[i]
+            nabla_w, nabla_b = self.back_propagation(batch[b], ahead_w, ahead_b)
+            velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, self.batch_size)
+
+    def stochatic_nag(self, dataset:List):
+        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        ahead_w = [[] for l in range(len(self.__shape) - 1)]
+        ahead_b = [[] for l in range(len(self.__shape) - 1)]
+        for d in dataset:
+            for i in range(len(self.__shape) - 1):
+               ahead_w[i] = numpy.array(self.__weights[i]) - self.beta_1 * velocity_w[i]
+               ahead_b[i] = numpy.array(self.__biaises[i]) - self.beta_1 * velocity_b[i]
+            nabla_w, nabla_b = self.back_propagation([d], ahead_w, ahead_b)
+            velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, 1)
+
+    #
+    # --- 3.2.X MOMENTUM UTILS ---
+    #
+    def update_velocity_weights(self, velo_w:List, velo_b:List, nabla_w:List, nabla_b:List, batch_size:int):
+        for i in range(len(self.__shape) - 1):
+            velo_w[i] = self.beta_1 * velo_w[i] + self.learning_rate * (nabla_w[i] / batch_size) 
+            self.__weights[i] = numpy.array(self.__weights[i]) - velo_w[i]
+            velo_b[i] = self.beta_1 * velo_b[i] + self.learning_rate * (nabla_b[i] / batch_size) 
+            self.__biaises[i] = numpy.array(self.__biaises[i]) - velo_b[i]
+        return velo_w, velo_b
+    
+    # ------------------------------------------------------
+    # --- 3.2 MOMENTUM METHODS ---
+    # ------------------------------------------------------
+    def root_mean_square_propagation(dataset:List, config:Dict):
+        pass
+
+    def adam(dataset:List, config:Dict):
+        pass
+
+    # ------------------------------------------------------
+    # --- 3.X TRAINING UTILS ---
+    # ------------------------------------------------------
+    
+    def back_propagation(self, dataset:List, weights:List, biaises:List):
+        nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        nabla_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        for d in dataset:
+            dn_w = []
+            dn_b = []
+            if len(d["label"]) != self.__shape[-1]:
+                logger.info("The label need to have the same size than output layer")
+                raise Exception()
+            out = self.forward_pass(d["data"], weights, biaises)
+            delta = self.__activation.delta(out[-1], d["label"])
+            dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[-2])))
+            dn_b.insert(0, delta)
+            idx = len(self.__shape)-3
+            while idx >= 0:
+                prime = self.__activation.prime(out[idx+1])
+                delta = numpy.dot(numpy.transpose(weights[idx+1]), delta) * prime
+                dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[idx])))
+                dn_b.insert(0, delta) 
+                idx-=1
+            for i in range(len(self.__shape) - 1):
+                nabla_w[i] = numpy.array(nabla_w[i]) + numpy.array(dn_w[i])
+                nabla_b[i] = numpy.array(nabla_b[i]) + numpy.array(dn_b[i])
+        return nabla_w, nabla_b
+
+    def prepare_batch(self, dataset:List):
+        if len(dataset) < self.batch_size * 2:
+            logger.error("data set to small to be used with this batch size")
+            raise Exception()
+        ds_len = int(len(dataset) / self.batch_size) * self.batch_size
+        numpy.random.shuffle(dataset)
+        batch = [[dataset[i] for i in range(j, j+self.batch_size)] for j in range(0, ds_len, self.batch_size)]
+        return batch
+
+    def forward_pass(self, input:List, weights:List, biaises:List):
+        out = []
+        out.append(input)
+        for l in range(len(self.__shape) - 2):
+            out.append(self.__activation.activation(self.fire_layer(weights[l], biaises[l], out[-1])))
+        out.append(self.__output_activation.activation(self.fire_layer(weights[-1], biaises[-1], out[-1])))
+        return out
+    
+    def fire_layer(self, weight:List, biaises:List, input:List):
+        res = [numpy.dot(w, input) + b for w,b in zip(weight, biaises)]
         return res
 
-    def update_weights(self, batch_size:float, eta:float):
-        for i in range(len(self.__shape) - 1):
-            self.__weights[i] = np.array(self.__weights[i]) - eta * (np.array(self.__nabla_w[i]) / batch_size)
-            self.__nabla_w[i] = np.full(np.shape(self.__nabla_w[i]), 0.0)
 
-    def update_biaises(self, batch_size:float, eta:float):
-        for i in range(len(self.__shape) - 1):
-            self.__biaises[i] = np.array(self.__biaises[i]) - eta * (np.array(self.__nabla_b[i]) / batch_size) 
-            self.__nabla_b[i] = np.full(np.shape(self.__nabla_b[i]), 0.0)
-
-
+    # ======================================================
+    # --- 7. DEBUG / CHECK ---
+    # ======================================================
     def checkNetwork(self):
         print("-- NETWORK --")
         print("General options:")
@@ -304,6 +473,13 @@ class Network:
         print(" -biaises:")
         print(self.__biaises)
         return
+    
+    def fire(self, input:numpy.array) -> numpy.array:
+        act_input = input
+        for l in range(len(self.__shape) - 2):
+            act_input = numpy.array(self.__activation.activation(self.fire_layer(self.__weights[l], self.__biaises[l], act_input)))
+        act_input = numpy.array(self.__output_activation.activation(self.fire_layer(self.__weights[-1], self.__biaises[-1], act_input)))
+        return act_input
     
 
 

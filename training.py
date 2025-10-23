@@ -88,26 +88,32 @@ def main():
     try:
         myNet = Network("config.yaml")
     except Exception as e:
-        print("[FATAL] -> The network's configuration failed")
+        print(f"[FATAL] -> The network's configuration failed: {e}")
         exit(1)
     try:
         myNet2 = Network("config2.yaml")
     except Exception as e:
-        print("[FATAL] -> The network's configuration failed")
+        print(f"[FATAL] -> The network's configuration failed: {e}")
         exit(1)
-    if visu_option[0] == 1:
-        myNet.option_visu_training = True
-        myNet2.option_visu_training = True
-    if visu_option[1] == 1:
-        myNet.option_visu_loss = True
-        myNet2.option_visu_loss = True
-    if visu_option[2] == 1:
-        myNet.option_visu_accuracy = True
-        myNet2.option_visu_accuracy = True
+    try:
+        myNet3 = Network("config3.yaml")
+    except Exception as e:
+        print(f"[FATAL] -> The network's configuration failed: {e}")
+        exit(1)
+    myNet.option_visu_training = True
+    myNet.option_visu_loss = True
+    myNet.option_visu_accuracy = True
+    myNet2.option_visu_training = True
+    myNet2.option_visu_loss = True
+    myNet2.option_visu_accuracy = True
+    myNet3.option_visu_training = True
+    myNet3.option_visu_loss = True
+    myNet3.option_visu_accuracy = True
     accuracies, errors = myNet.learn(data_train,data_test)
-    accuracies2, errors2 = myNet2.learn(data_train,data_test)
+    accuracies2, errors3 = myNet2.learn(data_train,data_test)
+    accuracies3, errors3 = myNet3.learn(data_train,data_test)
 
-    plt.plot(range(1000), accuracies, "r", range(1000), accuracies2, "b")
+    plt.plot(range(len(accuracies)), accuracies, "r", range(len(accuracies2)), accuracies2, "b", range(len(accuracies3)), accuracies3, "g")
     plt.xlabel("epoch")
     plt.xticks(np.arange(0, 1000, 100))
     plt.yticks(np.arange(0, 100, 10))

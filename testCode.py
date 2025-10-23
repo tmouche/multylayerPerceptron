@@ -3,15 +3,7 @@ import numpy
 import sys
 
 
-class test:
-    
-    def __init__(self, ptitMessage:str):
-        self.monMessage = ptitMessage
+test = [[1],[1,2],[1,2,3]]
 
-    def testprint(self):
-        print("hello", self.monMessage)
-
-myClass = getattr(sys.modules[__name__], "test")("grrrr")
-
-myClass.testprint()
+dublicata = numpy.array()
 
