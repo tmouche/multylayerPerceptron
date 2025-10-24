@@ -282,17 +282,17 @@ class Network:
     # ------------------------------------------------------
     # --- 3.1 GRADIENT DESCEND METHODS ---
     # ------------------------------------------------------
-    def full_gradient_descent(self, dataset:List):
+    def full_gd(self, dataset:List):
         nabla_w, nabla_b = self.back_propagation(dataset, self.__weights, self.__biaises)
         self.update_weights(nabla_w, nabla_b, len(dataset))
     
-    def mini_gradient_descent(self, dataset:List):
+    def mini_gd(self, dataset:List):
         batch = self.prepare_batch(dataset)
         for b in range(len(batch)):
             nabla_w, nabla_b = self.back_propagation(batch[b], self.__weights, self.__biaises)
             self.update_weights(nabla_w, nabla_b, self.batch_size)
 
-    def stochatic_gradient_descent(self, dataset:List):
+    def stochatic_gd(self, dataset:List):
         for d in dataset:
             nabla_w, nabla_b = self.back_propagation([d], self.__weights, self.__biaises)
             self.update_weights(nabla_w, nabla_b, 1)
@@ -308,7 +308,7 @@ class Network:
     # ------------------------------------------------------
     # --- 3.2 GRADIENT ACCELERATED METHODS ---
     # ------------------------------------------------------
-    def full_nesterov_accelerated_gradient(self, dataset:List):
+    def full_nag(self, dataset:List):
         momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
         momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
         ahead_w = [[] for l in range(len(self.__shape) - 1)]
@@ -319,7 +319,7 @@ class Network:
         nabla_w, nabla_b = self.back_propagation(dataset, ahead_w, ahead_b)
         momentum_w, momentum_b = self.update_momentum_weights(momentum_w, momentum_b, nabla_w, nabla_b, len(dataset))
     
-    def mini_nesterov_accelerated_gradient(self, dataset:List):
+    def mini_nag(self, dataset:List):
         momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
         momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
         ahead_w = [[] for l in range(len(self.__shape) - 1)]
@@ -332,7 +332,7 @@ class Network:
             nabla_w, nabla_b = self.back_propagation(batch[b], ahead_w, ahead_b)
             momentum_w, momentum_b = self.update_momentum_weights(momentum_w, momentum_b, nabla_w, nabla_b, self.batch_size)
 
-    def stochatic_nesterov_accelerated_gradient(self, dataset:List):
+    def stochatic_nag(self, dataset:List):
         momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
         momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
         ahead_w = [[] for l in range(len(self.__shape) - 1)]
@@ -347,24 +347,33 @@ class Network:
     #
     # --- 3.2.X GRADIENT ACCELERATED UTILS ---
     #
-    def update_momentum_weights(self, velo_w:List, velo_b:List, nabla_w:List, nabla_b:List, batch_size:int):
+    def update_momentum_weights(self, momentum_w:List, momentum_b:List, nabla_w:List, nabla_b:List, batch_size:int):
         for i in range(len(self.__shape) - 1):
-            velo_w[i] = self.momentum_rate * velo_w[i] + self.learning_rate * (nabla_w[i] / batch_size) 
-            self.__weights[i] = numpy.array(self.__weights[i]) - velo_w[i]
-            velo_b[i] = self.momentum_rate * velo_b[i] + self.learning_rate * (nabla_b[i] / batch_size) 
-            self.__biaises[i] = numpy.array(self.__biaises[i]) - velo_b[i]
-        return velo_w, velo_b
+            nabla_w[i] = numpy.array(nabla_w[i], dtype=float)
+            nabla_b[i] = numpy.array(nabla_b[i], dtype=float)
+            momentum_w[i] = numpy.array(momentum_w[i], dtype=float)
+            momentum_b[i] = numpy.array(momentum_b[i], dtype=float)
+            self.__weights[i] = numpy.array(self.__weights[i], dtype=float)
+            self.__biaises[i] = numpy.array(self.__biaises[i], dtype=float)
+
+            momentum_w[i] = self.momentum_rate * momentum_w[i] + (1 - self.momentum_rate)*(nabla_w[i] / batch_size) 
+            self.__weights[i] = numpy.array(self.__weights[i]) - momentum_w[i] * self.learning_rate
+
+            momentum_b[i] = self.momentum_rate * momentum_b[i] + (1 - self.momentum_rate)*(nabla_b[i] / batch_size) 
+            self.__biaises[i] = numpy.array(self.__biaises[i]) - momentum_b[i] * self.learning_rate
+        
+        return momentum_w, momentum_b
     
     # ------------------------------------------------------
     # --- 3.3 ROOT MEAN SQUARE PROPAGATION METHODS ---
     # ------------------------------------------------------
-    def full_root_mean_square_propagation(self, dataset:List):
-        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+    def full_rms_prop(self, dataset:List):
+        velocity_w = [numpy.full((len(w),len(w[0])) , 0.0) for w in self.__weights]
         velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
         nabla_w, nabla_b = self.back_propagation(dataset, self.__weights, self.__biaises)
         velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, len(dataset))
 
-    def mini_root_mean_square_propagation(self, dataset:List):
+    def mini_rms_prop(self, dataset:List):
         velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
         velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
         batch = self.prepare_batch(dataset)
@@ -372,7 +381,7 @@ class Network:
             nabla_w, nabla_b = self.back_propagation(batch[b], self.__weights, self.__biaises)
             velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, self.batch_size)
 
-    def stochatic_root_mean_square_propagation(self, dataset:List):
+    def stochatic_rms_prop(self, dataset:List):
         velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
         velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
         for d in dataset:
@@ -384,15 +393,79 @@ class Network:
     #
     def update_velocity_weights(self, velo_w:List, velo_b:List, nabla_w:List, nabla_b:List, batch_size:int):
         for i in range(len(self.__shape) - 1):
-            velo_w[i] = self.velocity_rate * velo_w[i] + (1 - self.velocity_rate)
-            self.__weights[i] = numpy.array(self.__weights[i]) - (self.learning_rate / (numpy.sqrt(velo_w[i] + EPS))) * (nabla_w[i] / batch_size)
-            velo_b[i] = self.velocity_rate * velo_b[i] + (1 - self.velocity_rate) 
-            self.__biaises[i] = numpy.array(self.__biaises[i]) - (self.learning_rate / (numpy.sqrt(velo_b[i] + EPS))) * (nabla_b[i] / batch_size)
+            nabla_w[i] = numpy.array(nabla_w[i], dtype=float)
+            nabla_b[i] = numpy.array(nabla_b[i], dtype=float)
+            velo_w[i] = numpy.array(velo_w[i], dtype=float)
+            velo_b[i] = numpy.array(velo_b[i], dtype=float)
+            self.__weights[i] = numpy.array(self.__weights[i], dtype=float)
+            self.__biaises[i] = numpy.array(self.__biaises[i], dtype=float)
+
+            velo_w[i] = self.velocity_rate * velo_w[i] + (1 - self.velocity_rate)*(numpy.power(nabla_w[i]/batch_size, 2))
+            self.__weights[i] -= (self.learning_rate / (numpy.sqrt(velo_w[i])+EPS)) * (nabla_w[i] / batch_size)
+
+            velo_b[i] = self.velocity_rate * velo_b[i] + (1 - self.velocity_rate)*(numpy.power(nabla_b[i]/batch_size, 2))
+            self.__biaises[i] -= (self.learning_rate / (numpy.sqrt(velo_b[i]) + EPS)) * (nabla_b[i] / batch_size)
+
         return velo_w, velo_b
 
+    # ------------------------------------------------------
+    # --- 3.3 ADAM METHODS ---
+    # ------------------------------------------------------
+    def full_adam(self, dataset:List):
+        momentum = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
+        velocity = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
+        a_head = {"w":[[] for l in range(len(self.__shape) - 1)],"b":[[] for l in range(len(self.__shape) - 1)]}
+        for i in range(len(self.__shape) - 1):
+            a_head["w"][i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum["w"][i]
+            a_head["b"][i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum["b"][i]
+        nabla_w, nabla_b = self.back_propagation(dataset, a_head["w"], a_head["b"])
+        momentum, velocity = self.update_momentum_velocity_weights(momentum, velocity, {"w":nabla_w,"b":nabla_b}, len(dataset))
 
-    def adam(dataset:List, config:Dict):
-        pass
+    def mini_adam(self, dataset:List):
+        momentum = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
+        velocity = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
+        a_head = {"w":[[] for l in range(len(self.__shape) - 1)],"b":[[] for l in range(len(self.__shape) - 1)]}
+        batch = self.prepare_batch(dataset)
+        for b in range(len(batch)):
+            for i in range(len(self.__shape) - 1):
+                a_head["w"][i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum["w"][i]
+                a_head["b"][i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum["b"][i]
+            nabla_w, nabla_b = self.back_propagation(batch[b], a_head["w"], a_head["b"])
+            momentum, velocity = self.update_momentum_velocity_weights(momentum, velocity, {"w":nabla_w,"b":nabla_b}, self.batch_size)
+
+    def stochatic_adam(self, dataset:List):
+        momentum = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
+        velocity = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
+        a_head = {"w":[[] for l in range(len(self.__shape) - 1)],"b":[[] for l in range(len(self.__shape) - 1)]}
+        for d in dataset:
+            for i in range(len(self.__shape) - 1):
+                a_head["w"][i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum["w"][i]
+                a_head["b"][i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum["b"][i]
+            nabla_w, nabla_b = self.back_propagation([d], a_head["w"], a_head["b"])
+            momentum, velocity = self.update_momentum_velocity_weights(momentum, velocity, {"w":nabla_w,"b":nabla_b}, 1)
+    #
+    # --- 3.2.X ADAM UTILS ---
+    #
+    def update_momentum_velocity_weights(self, momentum:Dict, velo:Dict, nabla:Dict, batch_size:int):
+        for i in range(len(self.__shape) - 1):
+            nabla["w"][i] = numpy.array(nabla["w"][i], dtype=float)
+            nabla["b"][i] = numpy.array(nabla["b"][i], dtype=float)
+            velo["w"][i] = numpy.array(velo["w"][i], dtype=float)
+            velo["b"][i] = numpy.array(velo["b"][i], dtype=float)
+            momentum["w"][i] = numpy.array(momentum["w"][i], dtype=float)
+            momentum["b"][i] = numpy.array(momentum["b"][i], dtype=float)
+            self.__weights[i] = numpy.array(self.__weights[i], dtype=float)
+            self.__biaises[i] = numpy.array(self.__biaises[i], dtype=float)
+
+            momentum["w"][i] = self.momentum_rate * momentum["w"][i] + (1 - self.momentum_rate) * (nabla["w"][i]/batch_size)
+            velo["w"][i] = self.velocity_rate * velo["w"][i] + (1 - self.velocity_rate) * (numpy.power(nabla["w"][i]/batch_size, 2))
+            self.__weights[i] -= momentum["w"][i]/(numpy.sqrt(velo["w"][i] + EPS)) * self.learning_rate
+
+            momentum["b"][i] = self.momentum_rate * momentum["b"][i] + (1 - self.momentum_rate) * (nabla["b"][i]/batch_size)
+            velo["b"][i] = self.velocity_rate * velo["b"][i] + (1 - self.velocity_rate) * (numpy.power(nabla["b"][i]/batch_size, 2))
+            self.__biaises[i] -= momentum["b"][i]/(numpy.sqrt(velo["b"][i] + EPS)) * self.learning_rate
+
+        return momentum, velo
 
     # ------------------------------------------------------
     # --- 3.X TRAINING UTILS ---
@@ -420,8 +493,8 @@ class Network:
                 dn_b.insert(0, delta) 
                 idx-=1
             for i in range(len(self.__shape) - 1):
-                nabla_w[i] = numpy.array(nabla_w[i]) + numpy.array(dn_w[i])
-                nabla_b[i] = numpy.array(nabla_b[i]) + numpy.array(dn_b[i])
+                nabla_w[i] = numpy.array(numpy.array(nabla_w[i]) + numpy.array(dn_w[i]))
+                nabla_b[i] = numpy.array(numpy.array(nabla_b[i]) + numpy.array(dn_b[i]))
         return nabla_w, nabla_b
 
     def prepare_batch(self, dataset:List):

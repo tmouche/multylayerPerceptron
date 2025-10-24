@@ -1,8 +1,8 @@
 general:
-  learning rate: 0.5
+  learning rate: 0.005
   epochs: 1000
   loss: binary cross entropy
-  optimisation: stochatic root mean square propagation
+  optimisation: stochatic adam
   evaluation: classification
   activation: sigmoid
   initialisation: xavier normal
