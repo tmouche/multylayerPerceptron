@@ -86,17 +86,12 @@ def main():
         data_test[-1]["label"] = [1] if df_train[i, 0] == 'M' else [0]
         data_test[-1]["data"] = np.array(df_test[i][1:]) 
     try:
-        myNet = Network("config.yaml")
-    except Exception as e:
-        print(f"[FATAL] -> The network's configuration failed: {e}")
-        exit(1)
-    try:
-        myNet2 = Network("config2.yaml")
-    except Exception as e:
-        print(f"[FATAL] -> The network's configuration failed: {e}")
-        exit(1)
-    try:
-        myNet3 = Network("config3.yaml")
+        myNet = Network("config/config.yaml")
+        myNet2 = Network("config/config2.yaml")
+        myNet3 = Network("config/config3.yaml")
+        # myNet4 = Network("config/config4.yaml")
+        # myNet5 = Network("config/config5.yaml")
+        # myNet6 = Network("config/config6.yaml")
     except Exception as e:
         print(f"[FATAL] -> The network's configuration failed: {e}")
         exit(1)
@@ -109,16 +104,37 @@ def main():
     myNet3.option_visu_training = True
     myNet3.option_visu_loss = True
     myNet3.option_visu_accuracy = True
+    # myNet4.option_visu_training = True
+    # myNet4.option_visu_loss = True
+    # myNet4.option_visu_accuracy = True
+    # myNet5.option_visu_training = True
+    # myNet5.option_visu_loss = True
+    # myNet5.option_visu_accuracy = True
+    # myNet6.option_visu_training = True
+    # myNet6.option_visu_loss = True
+    # myNet6.option_visu_accuracy = True
     accuracies, errors = myNet.learn(data_train,data_test)
     accuracies2, errors3 = myNet2.learn(data_train,data_test)
     accuracies3, errors3 = myNet3.learn(data_train,data_test)
+    # accuracies4, errors4 = myNet4.learn(data_train,data_test)
+    # accuracies5, errors5 = myNet5.learn(data_train,data_test)
+    # accuracies6, errors6 = myNet6.learn(data_train,data_test)
 
-    plt.plot(range(len(accuracies)), accuracies, "r", range(len(accuracies2)), accuracies2, "b", range(len(accuracies3)), accuracies3, "g")
-    plt.xlabel("epoch")
-    plt.xticks(np.arange(0, 1000, 100))
-    plt.yticks(np.arange(0, 100, 10))
-    plt.ylabel("accuracies")
-    plt.title("evolution of accuracies through epoch")
+    figure, axes = plt.subplots(1,2)
+
+    axes[0].plot(range(len(accuracies)), accuracies, "r", range(len(accuracies2)), accuracies2, "b", range(len(accuracies3)), accuracies3, "g")
+    axes[0].set_xlabel("epoch")
+    axes[0].set_xticks(np.arange(0, 1000, 100))
+    axes[0].set_yticks(np.arange(0, 100, 10))
+    axes[0].set_ylabel("accuracies")
+    axes[0].set_title("evolution of accuracies through epoch with descent")
+
+    # axes[1].plot(range(len(accuracies4)), accuracies4, "r", range(len(accuracies5)), accuracies5, "b", range(len(accuracies6)), accuracies6, "g")
+    # axes[1].set_xlabel("epoch")
+    # axes[1].set_xticks(np.arange(0, 1000, 100))
+    # axes[1].set_yticks(np.arange(0, 100, 10))
+    # axes[1].set_ylabel("accuracies")
+    # axes[1].set_title("evolution of accuracies through epoch with acceleration")
     plt.show()
     return
 

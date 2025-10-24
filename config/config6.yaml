@@ -1,0 +1,20 @@
+general:
+  learning rate: 0.5
+  epochs: 1000
+  loss: binary cross entropy
+  optimisation: stochatic nesterov accelerated gradient
+  evaluation: classification
+  activation: sigmoid
+  initialisation: xavier normal
+
+  
+
+architecture: 
+  input:
+    size: 30
+  hidden:
+    count: 1
+    size: [10]
+  output:
+    size: 1
+    activation: sigmoid

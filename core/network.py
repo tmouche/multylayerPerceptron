@@ -1,8 +1,8 @@
 
 import yaml
 import time
+import math
 import numpy
-import pandas as pd
 import matplotlib as plt
 import ml_tools.utils as Utils
 import ml_tools.activations as Activations
@@ -11,6 +11,8 @@ import ml_tools.activations as Activations
 from typing import List, Dict
 from utils.logger import Logger
 logger = Logger()
+
+EPS = 1e-8
 
 # ==========================================================
 # NETWORK CLASS
@@ -27,8 +29,8 @@ class Network:
     learning_rate: float = None
     epoch: int = None
     batch_size: int = None
-    beta_1:float = 0.9
-    beta_2:float = 0.9
+    momentum_rate:float = 0.9
+    velocity_rate:float = 0.9
 
     error_threshold:float = 0. #A IMPLEMENTER OPTIONNAL
 
@@ -124,7 +126,7 @@ class Network:
                 logger.error("Missing batch size for the SGD")
                 raise Exception()
         try:
-            self.beta_1 = float(config["beta 1"])
+            self.momentum_rate = float(config["beta 1"])
         except KeyError:
             if self.optimisation_name == "nesterov momentum" or self.optimisation_name == "adam":
                 logger.error("Missing beta 1 for the optimizer")
@@ -270,7 +272,7 @@ class Network:
                 errors.append(evaluation["error_mean"])
             if self.option_visu_training and not e % 100 or self.epoch < 100:
                 logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
-            if self.error_threshold > 0 and abs(evaluation["error_mean"]) < self.error_threshold or evaluation["accuracy"] == 100.:
+            if self.error_threshold > 0 and abs(evaluation["error_mean"]) < self.error_threshold:
                 break
         end_time = time.perf_counter()
         logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
@@ -280,126 +282,114 @@ class Network:
     # ------------------------------------------------------
     # --- 3.1 GRADIENT DESCEND METHODS ---
     # ------------------------------------------------------
-    def full_batch_gradient_descent(self, dataset:List):
-        nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        nabla_b = [numpy.full(len(w), 0.) for w in self.__weights]
-        for d in dataset:
-            delta_nabla_w, delta_nabla_b = self.descend_back_propagation(d["data"], d["label"])
-            for i in range(len(self.__shape) - 1):
-                nabla_w[i] = numpy.array(nabla_w[i]) + numpy.array(delta_nabla_w[i])
-                nabla_b[i] = numpy.array(nabla_b[i]) + numpy.array(delta_nabla_b[i]) 
-        for i in range(len(self.__shape) - 1):
-            self.__weights[i] = numpy.array(self.__weights[i]) - self.learning_rate * (numpy.array(nabla_w[i]) / len(dataset))
-            self.__biaises[i] = numpy.array(self.__biaises[i]) - self.learning_rate * (numpy.array(nabla_b[i]) / len(dataset))
-        return
+    def full_gradient_descent(self, dataset:List):
+        nabla_w, nabla_b = self.back_propagation(dataset, self.__weights, self.__biaises)
+        self.update_weights(nabla_w, nabla_b, len(dataset))
     
-    def mini_batch_gradient_descent(self, dataset:List):
-        nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        nabla_b = [numpy.full(len(w), 0.) for w in self.__weights]
+    def mini_gradient_descent(self, dataset:List):
         batch = self.prepare_batch(dataset)
         for b in range(len(batch)):
-            for l in range(self.batch_size):
-                delta_nabla_w, delta_nabla_b = self.descend_back_propagation(batch[b][l]["data"], batch[b][l]["label"])
-                for i in range(len(self.__shape) - 1):
-                    nabla_w[i] = numpy.array(nabla_w[i]) + numpy.array(delta_nabla_w[i])
-                    nabla_b[i] = numpy.array(nabla_b[i]) + numpy.array(delta_nabla_b[i])
-            for i in range(len(self.__shape) - 1):
-                self.__weights[i] = numpy.array(self.__weights[i]) - self.learning_rate * (numpy.array(nabla_w[i]) / self.batch_size)
-                self.__biaises[i] = numpy.array(self.__biaises[i]) - self.learning_rate * (numpy.array(nabla_b[i]) / self.batch_size)
+            nabla_w, nabla_b = self.back_propagation(batch[b], self.__weights, self.__biaises)
+            self.update_weights(nabla_w, nabla_b, self.batch_size)
 
     def stochatic_gradient_descent(self, dataset:List):
         for d in dataset:
-            nabla_w, nabla_b = self.descend_back_propagation(d["data"], d["label"])
-            for i in range(len(self.__shape) - 1):
-                self.__weights[i] = numpy.array(self.__weights[i]) - self.learning_rate * (numpy.array(nabla_w[i]) / 1)
-                self.__biaises[i] = numpy.array(self.__biaises[i]) - self.learning_rate * (numpy.array(nabla_b[i]) / 1)
-        return
-    
+            nabla_w, nabla_b = self.back_propagation([d], self.__weights, self.__biaises)
+            self.update_weights(nabla_w, nabla_b, 1)
+
     #
     # --- 3.1.X GRADIENT DESCEND UTILS ---
     #
-    def descend_back_propagation(self, input:List, label:List, weights:List, biaises:List):
-        dn_w = []
-        dn_b = []
-        if len(label) != self.__shape[-1]:
-            logger.info("The label need to have the same size than output layer")
-            raise Exception()
-        out = []
-        out.append(input)
-        net = input
-        size = len(self.__shape)
-        for i in range(size - 2):
-            net = self.fire_layer(weights[i], biaises[i], out[-1])
-            out.append(self.__activation.activation(net))
-        net = self.fire_layer(weights[-1], biaises[-1], out[-1])
-        out.append(self.__output_activation.activation(net))
-        delta = self.__activation.delta(out[-1], label)
-        dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[-2])))
-        dn_b.insert(0, delta)
-        idx = len(self.__shape)-3
-        while idx >= 0:
-            prime = self.__activation.prime(out[idx+1])
-            delta = numpy.dot(numpy.transpose(weights[idx+1]), delta) * prime
-            dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[idx])))
-            dn_b.insert(0, delta) 
-            idx-=1
-        return dn_w, dn_b
+    def update_weights(self, nabla_w:List, nabla_b:List, batch_size:int):
+        for i in range(len(self.__shape) - 1):
+            self.__weights[i] = numpy.array(self.__weights[i]) - self.learning_rate * (numpy.array(nabla_w[i]) / batch_size)
+            self.__biaises[i] = numpy.array(self.__biaises[i]) - self.learning_rate * (numpy.array(nabla_b[i]) / batch_size)
     
     # ------------------------------------------------------
     # --- 3.2 GRADIENT ACCELERATED METHODS ---
     # ------------------------------------------------------
-    def full_batch_nag(self, dataset:List):
-        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+    def full_nesterov_accelerated_gradient(self, dataset:List):
+        momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
         ahead_w = [[] for l in range(len(self.__shape) - 1)]
         ahead_b = [[] for l in range(len(self.__shape) - 1)]
         for i in range(len(self.__shape) - 1):
-            ahead_w[i] = numpy.array(self.__weights[i]) - self.beta_1 * velocity_w[i]
-            ahead_b[i] = numpy.array(self.__biaises[i]) - self.beta_1 * velocity_b[i]
+            ahead_w[i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum_w[i]
+            ahead_b[i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum_b[i]
         nabla_w, nabla_b = self.back_propagation(dataset, ahead_w, ahead_b)
-        velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, len(dataset))
+        momentum_w, momentum_b = self.update_momentum_weights(momentum_w, momentum_b, nabla_w, nabla_b, len(dataset))
     
-    def mini_batch_nag(self, dataset:List):
-        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+    def mini_nesterov_accelerated_gradient(self, dataset:List):
+        momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
         ahead_w = [[] for l in range(len(self.__shape) - 1)]
         ahead_b = [[] for l in range(len(self.__shape) - 1)]
         batch = self.prepare_batch(dataset)
         for b in range(len(batch)):
             for i in range(len(self.__shape) - 1):
-                ahead_w[i] = numpy.array(self.__weights[i]) - self.beta_1 * velocity_w[i]
-                ahead_b[i] = numpy.array(self.__biaises[i]) - self.beta_1 * velocity_b[i]
+                ahead_w[i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum_w[i]
+                ahead_b[i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum_b[i]
             nabla_w, nabla_b = self.back_propagation(batch[b], ahead_w, ahead_b)
-            velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, self.batch_size)
+            momentum_w, momentum_b = self.update_momentum_weights(momentum_w, momentum_b, nabla_w, nabla_b, self.batch_size)
 
-    def stochatic_nag(self, dataset:List):
-        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+    def stochatic_nesterov_accelerated_gradient(self, dataset:List):
+        momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
         ahead_w = [[] for l in range(len(self.__shape) - 1)]
         ahead_b = [[] for l in range(len(self.__shape) - 1)]
         for d in dataset:
             for i in range(len(self.__shape) - 1):
-               ahead_w[i] = numpy.array(self.__weights[i]) - self.beta_1 * velocity_w[i]
-               ahead_b[i] = numpy.array(self.__biaises[i]) - self.beta_1 * velocity_b[i]
+               ahead_w[i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum_w[i]
+               ahead_b[i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum_b[i]
             nabla_w, nabla_b = self.back_propagation([d], ahead_w, ahead_b)
-            velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, 1)
+            momentum_w, momentum_b = self.update_momentum_weights(momentum_w, momentum_b, nabla_w, nabla_b, 1)
 
     #
-    # --- 3.2.X MOMENTUM UTILS ---
+    # --- 3.2.X GRADIENT ACCELERATED UTILS ---
     #
-    def update_velocity_weights(self, velo_w:List, velo_b:List, nabla_w:List, nabla_b:List, batch_size:int):
+    def update_momentum_weights(self, velo_w:List, velo_b:List, nabla_w:List, nabla_b:List, batch_size:int):
         for i in range(len(self.__shape) - 1):
-            velo_w[i] = self.beta_1 * velo_w[i] + self.learning_rate * (nabla_w[i] / batch_size) 
+            velo_w[i] = self.momentum_rate * velo_w[i] + self.learning_rate * (nabla_w[i] / batch_size) 
             self.__weights[i] = numpy.array(self.__weights[i]) - velo_w[i]
-            velo_b[i] = self.beta_1 * velo_b[i] + self.learning_rate * (nabla_b[i] / batch_size) 
+            velo_b[i] = self.momentum_rate * velo_b[i] + self.learning_rate * (nabla_b[i] / batch_size) 
             self.__biaises[i] = numpy.array(self.__biaises[i]) - velo_b[i]
         return velo_w, velo_b
     
     # ------------------------------------------------------
-    # --- 3.2 MOMENTUM METHODS ---
+    # --- 3.3 ROOT MEAN SQUARE PROPAGATION METHODS ---
     # ------------------------------------------------------
-    def root_mean_square_propagation(dataset:List, config:Dict):
-        pass
+    def full_root_mean_square_propagation(self, dataset:List):
+        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        nabla_w, nabla_b = self.back_propagation(dataset, self.__weights, self.__biaises)
+        velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, len(dataset))
+
+    def mini_root_mean_square_propagation(self, dataset:List):
+        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        batch = self.prepare_batch(dataset)
+        for b in range(len(batch)):
+            nabla_w, nabla_b = self.back_propagation(batch[b], self.__weights, self.__biaises)
+            velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, self.batch_size)
+
+    def stochatic_root_mean_square_propagation(self, dataset:List):
+        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        for d in dataset:
+            nabla_w, nabla_b = self.back_propagation([d], self.__weights, self.__biaises)
+            velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, 1)
+
+    #
+    # --- 3.2.X ROOT MEAN SQUARE PROPAGATION UTILS ---
+    #
+    def update_velocity_weights(self, velo_w:List, velo_b:List, nabla_w:List, nabla_b:List, batch_size:int):
+        for i in range(len(self.__shape) - 1):
+            velo_w[i] = self.velocity_rate * velo_w[i] + (1 - self.velocity_rate)
+            self.__weights[i] = numpy.array(self.__weights[i]) - (self.learning_rate / (numpy.sqrt(velo_w[i] + EPS))) * (nabla_w[i] / batch_size)
+            velo_b[i] = self.velocity_rate * velo_b[i] + (1 - self.velocity_rate) 
+            self.__biaises[i] = numpy.array(self.__biaises[i]) - (self.learning_rate / (numpy.sqrt(velo_b[i] + EPS))) * (nabla_b[i] / batch_size)
+        return velo_w, velo_b
+
 
     def adam(dataset:List, config:Dict):
         pass
@@ -411,6 +401,7 @@ class Network:
     def back_propagation(self, dataset:List, weights:List, biaises:List):
         nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
         nabla_b = [numpy.full(len(w), 0.) for w in self.__weights]
+        count = 0
         for d in dataset:
             dn_w = []
             dn_b = []

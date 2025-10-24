@@ -43,6 +43,7 @@ class sigmoid(__Activation):
     def activation(z):
         if isinstance(z, float):
             return 1./(1.+math.exp(-z))
+        z = np.clip(z, -500, 500)
         return [1./(1.+math.exp(-x)) for x in z]
 
     @staticmethod

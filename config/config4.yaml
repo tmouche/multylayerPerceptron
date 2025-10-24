@@ -2,11 +2,10 @@ general:
   learning rate: 0.5
   epochs: 1000
   loss: binary cross entropy
-  optimisation: mini batch nag
+  optimisation: full nesterov accelerated gradient
   evaluation: classification
   activation: sigmoid
   initialisation: xavier normal
-  batch size: 30
   
   
 
