@@ -7,7 +7,7 @@ import matplotlib as plt
 import ml_tools.utils as Utils
 import ml_tools.activations as Activations
 
-
+from utils.history import save_to_history
 from typing import List, Dict
 from utils.logger import Logger
 logger = Logger()
@@ -249,7 +249,7 @@ class Network:
     # ======================================================
     # --- 3. TRAINING METHODS ---
     # ======================================================
-    def learn(self, ds_train:List, ds_test:List):
+    def train(self, ds_train:List, ds_test:List):
         accuracies:List = []
         errors:List = []
 
@@ -265,18 +265,24 @@ class Network:
         for e in range(self.epoch):
             self.__optimisation_fnc(ds_train)
             evaluation:Dict = self.__evaluation_fnc(self.__loss_fnc, self, ds_test)
-            accuracies.append(evaluation["accuracy"])
             if self.option_visu_accuracy:
-                pass
+                accuracies.append(evaluation["accuracy"])
             if self.option_visu_loss:
                 errors.append(evaluation["error_mean"])
             if self.option_visu_training and not e % 100 or self.epoch < 100:
                 logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
             if self.error_threshold > 0 and abs(evaluation["error_mean"]) < self.error_threshold:
                 break
-        end_time = time.perf_counter()
-        logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
-        logger.info(f"The training is completed in {end_time - start_time}sec")
+        time_stamp = time.perf_counter() - start_time    
+        self.save_training(
+            accuracy=evaluation["accurary"],
+            precision=evaluation["precision"],
+            recall=evaluation["recall"], 
+            f1=evaluation["f1"], 
+            time=time_stamp, 
+            min_training_loss=min_training_loss,
+            min_testing_loss=min_testing_loss
+        )
         return accuracies, errors
 
     # ------------------------------------------------------
@@ -520,7 +526,7 @@ class Network:
 
 
     # ======================================================
-    # --- 7. DEBUG / CHECK ---
+    # --- 7. UTILS ---
     # ======================================================
     def checkNetwork(self):
         print("-- NETWORK --")
@@ -544,6 +550,32 @@ class Network:
             act_input = numpy.array(self.__activation.activation(self.fire_layer(self.__weights[l], self.__biaises[l], act_input)))
         act_input = numpy.array(self.__output_activation.activation(self.fire_layer(self.__weights[-1], self.__biaises[-1], act_input)))
         return act_input
+    
+    def save_training(
+            self,
+            accuracy:float=None,
+            precision:float=None,
+            recall:float=None,
+            f1:float=None,
+            time:float=None,
+            min_training_loss:float=None,
+            min_testing_loss:float=None
+    ):
+        save_to_history(
+            optimizer=self.optimisation_name,
+            activation_function=self.activation_name,
+            loss_function=self.activation_name,
+            epoch=self.epoch,
+            learning_rate=self.learning_rate,
+            network_shape=self.__shape,
+            min_training_loss=min_training_loss,
+            min_testing_loss=min_testing_loss,
+            accuracy=accuracy,
+            precision=precision,
+            recall=recall,
+            f1=f1,
+            time=time
+        )
     
 
 
