@@ -1,18 +1,43 @@
-
+import sys
 import yaml
 import time
 import math
 import numpy
 import matplotlib as plt
-import ml_tools.utils as Utils
+import ml_tools.initialisations as Initialisations
 import ml_tools.activations as Activations
+import ml_tools.losses as Losses
+
+from ml_tools.utils import step
 
 from utils.history import save_to_history
-from typing import List, Dict
+from typing import List, Dict, Sequence, Optional
 from utils.logger import Logger
 logger = Logger()
 
 EPS = 1e-8
+
+class NetworkConfig:
+    
+    learning_rate: float = 0.001
+    epoch: int = 50
+    batch_size: Optional[int] = None
+
+    momentum_rate: float = 0.9
+    velocity_rate: float = 0.9
+
+    loss_threshold: Optional[float] = None
+
+    shape:List
+
+    evaluation:callable
+
+    activation_name:str
+    loss_name:str
+    optimisation_name:str
+    output_activation_name:str
+    initialisation_name:str
+
 
 # ==========================================================
 # NETWORK CLASS
@@ -23,58 +48,52 @@ class Network:
     # --- 1. CLASS ATTRIBUTES / CONFIG DEFAULTS ---
     # =====================================================
     option_visu_training: bool = False
-    option_visu_loss: bool = False
-    option_visu_accuracy: bool = False
 
-    learning_rate: float = None
-    epoch: int = None
-    batch_size: int = None
-    momentum_rate:float = 0.9
-    velocity_rate:float = 0.9
-
-    error_threshold:float = 0. #A IMPLEMENTER OPTIONNAL
+    config:NetworkConfig 
 
     # Components and functions
-    optimisation_name:str = None
-    __optimisation_fnc = None
-
-    evaluation_name:str = None
-    __evaluation_fnc = None
-
-    loss_name:str = None
-    __loss_fnc = None
-
-    activation_name:str = None
-    __activation = None
-
-    output_activation_name:str = None
-    __output_activation = None
-
-    initialisation_name:str = None
-    __initialisation_fnc = None
+    __opti_fnc:callable = None
+    __eval_fnc:callable = None
+    __loss_fnc:callable = None
+    __act_fnc:callable = None
+    __output_act_fnc:callable = None
+    __init_fnc:callable = None
 
     # Network structure
     __weights:List = None
     __biaises:List = None
-    __shape:List = None
+
+    __nabla_w:Sequence = None
+    __nabla_b:Sequence = None
+
+    __momentum_w:Sequence = None
+    __momentum_b:Sequence = None
+
+    __ahead_w:Sequence = None
+    __ahead_b:Sequence = None
+
+    __velocity_w:Sequence = None
+    __velocity_b:Sequence = None
 
     # ======================================================
     # --- 2. INITIALIZATION ---
     # ======================================================
-    def __init__(self, init_file_path: str):
+
+    def __init__(self, config:NetworkConfig):
+        self.config = config
+        self.__check_config()
+
+    def check_config(self, init_file_path: str):
         """
         Load YAML config and initialize network structure and parameters.
         """
-        config_general, config_archi = self.__load_config(init_file_path)
 
         logger.info("Network initialization starting...")
         logger.info("Configuration starting...")
-        self.__init_mandatories(config_general)
-        self.__init_optimisation(config_general)
-        self.__init_evaluation(config_general)
-        self.__init_loss(config_general)
-        self.__init_activation(config_general)
-        self.__init_initialisation(config_general)
+        self.__check_mandatories()
+        self.__check_optimisation()
+        self.__check_activation()
+        self.__init_initialisation()
         logger.info("Configuration complete...")
         logger.info("Layers initialization starting...")
         self.__init_layers(config_archi)
@@ -84,114 +103,65 @@ class Network:
     # ------------------------------------------------------
     # --- 2.1 CONFIGURATION INITIALISATION ---
     # ------------------------------------------------------
-    def __load_config(self, path:str):
-        try:
-            f = open(path, 'r')
-        except:
-            logger.error(f"Can not open the file {path}")
-            raise Exception()
-        dataStr = f.read()
-        try:
-            config = yaml.safe_load(dataStr)
-            config_general = config["general"]
-            config_archi = config["architecture"]
-        except:
-            logger.error(f"The config file need to be a .yaml with atleast general and architecture keys")
-            raise Exception()
-        return config_general, config_archi
 
-    def __init_mandatories(self, config: dict):
-        try:
-            self.learning_rate = float(config["learning rate"])
-            self.epoch = int(config["epochs"])
-        except KeyError:
-            logger.error("Missing key in the config file")
+    def __check_mandatories(self):
+        if self.config.learning_rate is None or self.config.learning_rate <= 0:
+            logger.error("Learning rate cannot be negative or egal to 0")
+            raise Exception()
+        if self.config.epoch is None or self.config.epoch <= 0:
+            logger.error("The number of epoch cannot be negative or egal to 0")
             raise Exception()
         logger.info("Mandatories OK..")
         
-    def __init_optimisation(self, config: dict):
+    def __check_optimisation(self):
+        opti_name = '__' + '_'.join(str.lower(self.config.optimisation_name).split())
         try:
-            self.optimisation_name = '_'.join(str.lower(config["optimisation"]).split())
+            self.__opti_fnc = getattr(self, opti_name)
         except KeyError:
-            self.optimisation_name = "gradient_descent"
-        try:
-            self.__optimisation_fnc = getattr(self, self.optimisation_name)
-        except KeyError:
-            logger.error(f"Optimisation function {self.optimisation_name} is unknown")
+            logger.error(f"Optimisation function {self.config.optimisation_name} is unknown")
             raise Exception()
-        try:
-            self.batch_size = int(config["batch size"])
-        except KeyError:
-            if (self.optimisation_name == "stochastic_gradient_descent"):
-                logger.error("Missing batch size for the SGD")
-                raise Exception()
-        try:
-            self.momentum_rate = float(config["beta 1"])
-        except KeyError:
-            if self.optimisation_name == "nesterov momentum" or self.optimisation_name == "adam":
-                logger.error("Missing beta 1 for the optimizer")
-                raise Exception()
-        try:
-            self.beta_2 = float(config["beta 2"])
-        except KeyError:
-            if self.optimisation_name == "rms_prop" or self.optimisation_name == "adam":
-                logger.error("Missing beta 2 for the optimizer")
-                raise Exception()
-        logger.info("Optimisation OK..")
         
-    def __init_evaluation(self, config:dict):
-        try:
-            self.evaluation_name = '_'.join(str.lower(config["evaluation"]).split())
-        except KeyError:
-            logger.error("Missing the evaluation method")
-        try:
-            import ml_tools.evaluations as Evaluators
-            self.__evaluation_fnc = getattr(Evaluators, self.evaluation_name)
-        except:
-            logger.error(f"Evaluation function {self.evaluation_name} is unknown")
-            raise Exception()
-        logger.info("Evaluation OK..")
-
-    def __init_activation(self, config:dict):
-        try:
-            self.activation_name = '_'.join(str.lower(config["activation"]).split())
-        except KeyError:
-            self.activation_name = "sigmoid"
-        if self.activation_name == "softmax":
+        if self.config.batch_size is None:
+            if "mini" in self.__opti_name:
+                logger.error(f"Missing batch size for {self.config.optimisation_name}")
+                raise Exception()
+        else:
+            if self.config.batch_size <= 0:
+                logger.error(f"{self.config.batch_size} not a valid value for batch size")
+                raise Exception()
+        
+        if self.config.momentum_rate is None or self.config.momentum_rate <= 0.:
+            if "adam" or "nag" in self.config.optimisation_name:
+                logger.error(f"{self.config.momentum_rate} is not a valid value for momentum rate")
+                raise Exception()
+        if self.config.velocity_rate is None or self.config.velocity_rate <= 0.:
+            if "adam" or "rms" in self.config.optimisation_name:
+                logger.error(f"{self.config.velocity_rate} is not a valid value for velocity rate")
+                raise Exception()
+        
+    def __check_activation(self):
+        loss_name = '_'.join(str.lower(self.config.loss_name).split())
+        act_name = '_'.join(str.lower(self.config.activation_name).split())
+        if act_name == "softmax":
             logger.error("Softmax can not be used as activation for hidden layers")
             raise Exception()
         try:
-            self.__activation = getattr(Activations, self.activation_name)(self.loss_name)
+            self.__loss_fnc = getattr(Losses, loss_name)
         except AttributeError:
-            logger.error(f"Activation function {self.activation_name} unknown")
+            logger.error(f"Activation function {act_name} unknown")
             raise Exception()
-        logger.info("Activation OK..")
+        try:
+            self.__act_fnc = getattr(Activations, act_name)(loss_name)
+        except AttributeError:
+            logger.error(f"Activation function {act_name} unknown")
+            raise Exception()
         
-    def __init_initialisation(self, config:Dict):
+    def __init_initialisation(self):
+        init_name = '_'.join(str.lower(self.config.initialisation_name).split())
         try:
-            self.initialisation_name = '_'.join(str.lower(config["initialisation"]).split())
-        except KeyError:
-            self.initialisation_name = "he_normal"
-        try:
-            import ml_tools.initialisations as Initialisations
-            self.__initialisation_fnc = getattr(Initialisations, self.initialisation_name)
+            self.__init_fnc = getattr(Initialisations, init_name)
         except AttributeError:
-            logger.error(f"Initialisation function {self.initialisation_name} is unknown")
-        logger.info("Initialisation OK..")
-
-    def __init_loss(self, config: dict):
-        try:
-            self.loss_name = '_'.join(str.lower(config["loss"]).split())
-        except KeyError:
-            logger.error("Missing loss function")
-            raise Exception()
-        try:
-            import ml_tools.losses as Losses
-            self.__loss_fnc = getattr(Losses, self.loss_name)
-        except KeyError:
-            logger.error(f"Loss function {self.__loss_fnc} is unknow")
-            raise Exception()
-        logger.info("loss OK..")
+            logger.error(f"Initialisation function {init_name} is unknown")
 
     # ------------------------------------------------------
     # --- 2.2 LAYER INITIALIZATION ---
@@ -199,36 +169,45 @@ class Network:
     def __init_layers(self, archi: dict):
         self.__weights = []
         self.__biaises = []
-        self.__shape = []
+        
+        if len(self.config.shape) < 3:
+            logger.error("The Network has to have at least 3 layers")
+            raise Exception()
+
+        for i in range(1, len(self.config.shape)):
+            if self.config.shape[i] <= 0 or self.config.shape[i-1] <= 0:
+                logger.error("A layer size can not be negativ or egal to 0")
+                raise Exception()
+            self.__create_layers(self.config.shape[i], self.config.shape[i-1])
+                
         try:
-            previous_size = int(archi["input"]["size"])
-            output_size = int(archi["output"]["size"])
+            previous_size = self.config.shape[0]
+            output_size = self.config.shape[-1]
         except KeyError:
             logger.error(f"Missing mandatories keys (architecture.input.size, architecture.output.size)")
             raise Exception()
         if previous_size < 1 or output_size < 0:
             logger.error(f"The input size and the output size cannot be lower than 1")
             raise Exception()
-        self.__shape.append(previous_size)
-        if "hidden" in archi:
-            try:
-                hidden_size = list[int](archi["hidden"]["size"])
-                hidden_count = int(archi["hidden"]["count"])
-            except KeyError:
-                logger.error(f"Missing optinnals keys (architecture.hidden.size, architecture.hidden.count)")
-                raise Exception()
-            if hidden_count < 0:
-                logger.error("The Network can not have a negative count of layer")
-                raise Exception()
-            if hidden_count != len(hidden_size):
-                logger.error("Missmatch between the count and the sizes")
-                raise Exception()
+        for i in range(1, len(self.config.shape)):
+            # try:
+            #     hidden_size = list[int](archi["hidden"]["size"])
+            #     hidden_count = int(archi["hidden"]["count"])
+            # except KeyError:
+            #     logger.error(f"Missing optinnals keys (architecture.hidden.size, architecture.hidden.count)")
+            #     raise Exception()
+            # if hidden_count < 0:
+            #     logger.error("The Network can not have a negative count of layer")
+            #     raise Exception()
+            # if hidden_count != len(hidden_size):
+            #     logger.error("Missmatch between the count and the sizes")
+            #     raise Exception()
             for x in range(hidden_count):
                 self.__create_layers(hidden_size[x], previous_size)
                 previous_size = hidden_size[x]
-                self.__shape.append(previous_size)
+                self.shape.append(previous_size)
         self.__create_layers(output_size, previous_size)
-        self.__shape.append(output_size)
+        self.shape.append(output_size)
         try:
             self.output_activation_name = '_'.join(str.lower(archi["output"]["activation"]).split())
         except KeyError:
@@ -249,293 +228,380 @@ class Network:
     # ======================================================
     # --- 3. TRAINING METHODS ---
     # ======================================================
-    def train(self, ds_train:List, ds_test:List):
-        accuracies:List = []
-        errors:List = []
+    def train(self, ds_train:List, ds_test:List) -> tuple[Sequence, Sequence]:
+        accuracies:Dict = {'testing': [], 'training': []}
+        losses:Dict = {'testing': [], 'training': []}
 
-        if len(ds_train[0]["data"]) != self.__shape[0]:
-            logger.error(f"Missmatch between the number of input ({len(ds_train[0]['data'])}) and the number of expected input ({self.__shape[0]})")
+        min_training_loss: float = sys.float_info.max
+        min_testing_loss: float = sys.float_info.max
+
+        if len(ds_train[0]["data"]) != self.shape[0]:
+            logger.error(f"Missmatch between the number of input ({len(ds_train[0]['data'])}) and the number of expected input ({self.shape[0]})")
             raise Exception()
-        if len(ds_train[0]["label"]) != self.__shape[-1]:
-            logger.error(f"Missmatch between the number of output ({len(ds_train[0]['label'])}) and the number of expected output ({self.__shape[-1]})")
+        if len(ds_train[0]["label"]) != self.shape[-1]:
+            logger.error(f"Missmatch between the number of output ({len(ds_train[0]['label'])}) and the number of expected output ({self.shape[-1]})")
             raise Exception()
 
         logger.info("Starting training...")
         start_time = time.perf_counter()
-        for e in range(self.epoch):
-            self.__optimisation_fnc(ds_train)
-            evaluation:Dict = self.__evaluation_fnc(self.__loss_fnc, self, ds_test)
-            if self.option_visu_accuracy:
-                accuracies.append(evaluation["accuracy"])
-            if self.option_visu_loss:
-                errors.append(evaluation["error_mean"])
-            if self.option_visu_training and not e % 100 or self.epoch < 100:
-                logger.info(f"epoch {e}/{self.epoch}: {evaluation}")
-            if self.error_threshold > 0 and abs(evaluation["error_mean"]) < self.error_threshold:
+        for e in range(self.config.epoch):
+            training:Dict = self.__opti_fnc(ds_train)
+            testing:Dict = self.__eval_fnc(self, self.__loss_fnc, ds_test)
+            
+            accuracies['testing'].append(testing.get("accuracy"))
+            accuracies['testing'].append(testing.get("loss"))
+            losses['training'].append(training.get("accuracy"))
+            losses['training'].append(training.get("loss"))
+            
+            if self.option_visu_training:
+                self.__print_epoch_state(
+                    epoch=e,
+                    training_accuracy=training.get("accuracy"),
+                    training_loss=training.get("loss"),
+                    testing_accuracy= testing.get("accuracy"),
+                    testing_loss= testing.get("loss")
+                )
+            if self.error_threshold and abs(testing["loss"]) < self.error_threshold:
                 break
         time_stamp = time.perf_counter() - start_time    
-        self.save_training(
-            accuracy=evaluation["accurary"],
-            precision=evaluation["precision"],
-            recall=evaluation["recall"], 
-            f1=evaluation["f1"], 
+        self.__save_training(
+            accuracy=testing["accuracy"],
+            precision=testing["precision"],
+            recall=testing["recall"], 
+            f1=testing["f1"], 
             time=time_stamp, 
             min_training_loss=min_training_loss,
             min_testing_loss=min_testing_loss
         )
-        return accuracies, errors
+        return accuracies, losses
 
     # ------------------------------------------------------
     # --- 3.1 GRADIENT DESCEND METHODS ---
     # ------------------------------------------------------
-    def full_gd(self, dataset:List):
-        nabla_w, nabla_b = self.back_propagation(dataset, self.__weights, self.__biaises)
-        self.update_weights(nabla_w, nabla_b, len(dataset))
+    def __full_gd(self, dataset:List) -> Dict:
+        accuracy, loss = self.__back_propagation(dataset, self.__weights, self.__biaises)
+        self.__update_weights(len(dataset))
+        return self.__create_epoch_state(accuracy, loss)
     
-    def mini_gd(self, dataset:List):
-        batch = self.prepare_batch(dataset)
-        for b in range(len(batch)):
-            nabla_w, nabla_b = self.back_propagation(batch[b], self.__weights, self.__biaises)
-            self.update_weights(nabla_w, nabla_b, self.batch_size)
+    def __mini_gd(self, dataset:List) -> Dict:
+        accuracies:List = []
+        losses:List = []
 
-    def stochatic_gd(self, dataset:List):
+        batch = self.__prepare_batch(dataset)
+        for b in range(len(batch)):
+            accuracy, loss = self.__back_propagation(batch[b], self.__weights, self.__biaises)
+            accuracies.append(accuracy)
+            losses.append(loss)
+            self.__update_weights(self.batch_size)
+        return self.__create_epoch_state(
+            sum(accuracies)/len(accuracies),
+            sum(losses)/len(losses)
+        )
+
+    def __stochatic_gd(self, dataset:List) -> Dict:
+        accuracies:List = []
+        losses:List = []
+
         for d in dataset:
-            nabla_w, nabla_b = self.back_propagation([d], self.__weights, self.__biaises)
-            self.update_weights(nabla_w, nabla_b, 1)
+            accuracy, loss = self.__back_propagation([d], self.__weights, self.__biaises)
+            accuracies.append(accuracy)
+            losses.append(loss)
+            self.__update_weights(1)
+        return self.__create_epoch_state(
+            sum(accuracies)/len(accuracies),
+            sum(losses)/len(losses)
+        )
 
     #
     # --- 3.1.X GRADIENT DESCEND UTILS ---
     #
-    def update_weights(self, nabla_w:List, nabla_b:List, batch_size:int):
-        for i in range(len(self.__shape) - 1):
-            self.__weights[i] = numpy.array(self.__weights[i]) - self.learning_rate * (numpy.array(nabla_w[i]) / batch_size)
-            self.__biaises[i] = numpy.array(self.__biaises[i]) - self.learning_rate * (numpy.array(nabla_b[i]) / batch_size)
+    def __update_weights(self, batch_size:int):
+        for i in range(len(self.shape) - 1):
+            self.__weights[i] = numpy.array(self.__weights[i]) - self.config.learning_rate * (numpy.array(self.__nabla_w[i]) / batch_size)
+            self.__biaises[i] = numpy.array(self.__biaises[i]) - self.config.learning_rate * (numpy.array(self.__nabla_b[i]) / batch_size)
     
     # ------------------------------------------------------
     # --- 3.2 GRADIENT ACCELERATED METHODS ---
     # ------------------------------------------------------
-    def full_nag(self, dataset:List):
-        momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
-        ahead_w = [[] for l in range(len(self.__shape) - 1)]
-        ahead_b = [[] for l in range(len(self.__shape) - 1)]
-        for i in range(len(self.__shape) - 1):
-            ahead_w[i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum_w[i]
-            ahead_b[i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum_b[i]
-        nabla_w, nabla_b = self.back_propagation(dataset, ahead_w, ahead_b)
-        momentum_w, momentum_b = self.update_momentum_weights(momentum_w, momentum_b, nabla_w, nabla_b, len(dataset))
+    def __full_nag(self, dataset:List):
+        self.__reset_momentum()
+        self.__reset_ahead()
+        
+        self.__update_ahead()
+        accuracy, loss = self.__back_propagation(dataset, self.__ahead_w, self.__ahead_b)
+        self.__update_momentum_weights(len(dataset))
+        return self.__create_epoch_state(accuracy, loss)
     
-    def mini_nag(self, dataset:List):
-        momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
-        ahead_w = [[] for l in range(len(self.__shape) - 1)]
-        ahead_b = [[] for l in range(len(self.__shape) - 1)]
-        batch = self.prepare_batch(dataset)
-        for b in range(len(batch)):
-            for i in range(len(self.__shape) - 1):
-                ahead_w[i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum_w[i]
-                ahead_b[i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum_b[i]
-            nabla_w, nabla_b = self.back_propagation(batch[b], ahead_w, ahead_b)
-            momentum_w, momentum_b = self.update_momentum_weights(momentum_w, momentum_b, nabla_w, nabla_b, self.batch_size)
+    def __mini_nag(self, dataset:List):
+        accuracies:List = []
+        losses:List = []
 
-    def stochatic_nag(self, dataset:List):
-        momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
-        ahead_w = [[] for l in range(len(self.__shape) - 1)]
-        ahead_b = [[] for l in range(len(self.__shape) - 1)]
+        self.__reset_momentum()
+        self.__reset_ahead()
+        batch = self.__prepare_batch(dataset)
+        for b in range(len(batch)):
+            self.__update_ahead()
+            accuracy, loss = self.__back_propagation(batch[b], self.__ahead_w, self.__ahead_b)
+            accuracies.append(accuracy)
+            losses.append(loss)
+            self.__update_momentum_weights(self.config.batch_size)
+        return self.__create_epoch_state(
+            sum(accuracies)/len(accuracies),
+            sum(losses)/len(losses)
+        )
+
+    def __stochatic_nag(self, dataset:List):
+        accuracies:List = []
+        losses:List = []
+        
+        self.__reset_momentum()
+        self.__reset_ahead()
         for d in dataset:
-            for i in range(len(self.__shape) - 1):
-               ahead_w[i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum_w[i]
-               ahead_b[i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum_b[i]
-            nabla_w, nabla_b = self.back_propagation([d], ahead_w, ahead_b)
-            momentum_w, momentum_b = self.update_momentum_weights(momentum_w, momentum_b, nabla_w, nabla_b, 1)
+            self.__update_ahead()
+            accuracy, loss = self.__back_propagation([d], self.__ahead_w, self.__ahead_b)
+            accuracies.append(accuracy)
+            losses.append(loss)
+            self.__update_momentum_weights(1)
+        return self.__create_epoch_state(
+            sum(accuracies)/len(accuracies),
+            sum(losses)/len(losses)
+        )
 
     #
     # --- 3.2.X GRADIENT ACCELERATED UTILS ---
     #
-    def update_momentum_weights(self, momentum_w:List, momentum_b:List, nabla_w:List, nabla_b:List, batch_size:int):
-        for i in range(len(self.__shape) - 1):
-            nabla_w[i] = numpy.array(nabla_w[i], dtype=float)
-            nabla_b[i] = numpy.array(nabla_b[i], dtype=float)
-            momentum_w[i] = numpy.array(momentum_w[i], dtype=float)
-            momentum_b[i] = numpy.array(momentum_b[i], dtype=float)
+    def __update_momentum_weights(self, batch_size:int):
+        for i in range(len(self.shape) - 1):
+            self.__nabla_w[i] = numpy.array(self.__nabla_w[i], dtype=float)
+            self.__nabla_b[i] = numpy.array(self.__nabla_b[i], dtype=float)
+            self.__momentum_w[i] = numpy.array(self.__momentum_w[i], dtype=float)
+            self.__momentum_b[i] = numpy.array(self.__momentum_b[i], dtype=float)
             self.__weights[i] = numpy.array(self.__weights[i], dtype=float)
             self.__biaises[i] = numpy.array(self.__biaises[i], dtype=float)
 
-            momentum_w[i] = self.momentum_rate * momentum_w[i] + (1 - self.momentum_rate)*(nabla_w[i] / batch_size) 
-            self.__weights[i] = numpy.array(self.__weights[i]) - momentum_w[i] * self.learning_rate
+            self.__momentum_w[i] = self.config.momentum_rate * self.__momentum_w[i] + (1 - self.config.momentum_rate)*(self.__nabla_w[i] / batch_size) 
+            self.__weights[i] = numpy.array(self.__weights[i]) - self.__momentum_w[i] * self.config.learning_rate
 
-            momentum_b[i] = self.momentum_rate * momentum_b[i] + (1 - self.momentum_rate)*(nabla_b[i] / batch_size) 
-            self.__biaises[i] = numpy.array(self.__biaises[i]) - momentum_b[i] * self.learning_rate
-        
-        return momentum_w, momentum_b
+            self.__momentum_b[i] = self.config.momentum_rate * self.__momentum_b[i] + (1 - self.config.momentum_rate)*(self.__nabla_b[i] / batch_size) 
+            self.__biaises[i] = numpy.array(self.__biaises[i]) - self.__momentum_b[i] * self.config.learning_rate
     
+    def __update_ahead(self):
+        for i in range(len(self.shape) - 1):
+            self.__ahead_w[i] = numpy.array(self.__weights[i]) - self.config.momentum_rate * self.__momentum_w[i]
+            self.__ahead_b[i] = numpy.array(self.__biaises[i]) - self.config.momentum_rate * self.__momentum_b[i]
+
+    def __reset_momentum(self):
+        self.__momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        self.__momentum_b = [numpy.full(len(w), 0.) for w in self.__weights]
+
+    def __reset_ahead(self):
+        self.__ahead_w = [[] for l in range(len(self.shape) - 1)]
+        self.__ahead_b = [[] for l in range(len(self.shape) - 1)]
+
     # ------------------------------------------------------
     # --- 3.3 ROOT MEAN SQUARE PROPAGATION METHODS ---
     # ------------------------------------------------------
-    def full_rms_prop(self, dataset:List):
-        velocity_w = [numpy.full((len(w),len(w[0])) , 0.0) for w in self.__weights]
-        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
-        nabla_w, nabla_b = self.back_propagation(dataset, self.__weights, self.__biaises)
-        velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, len(dataset))
+    def __full_rms_prop(self, dataset:List):
+        self.__reset_velocity()
+        accuracy, loss = self.__back_propagation(dataset, self.__weights, self.__biaises)
+        self.__update_velocity_weights(len(dataset))
+        return self.__create_epoch_state(accuracy, loss)
 
-    def mini_rms_prop(self, dataset:List):
-        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
-        batch = self.prepare_batch(dataset)
+    def __mini_rms_prop(self, dataset:List):
+        accuracies:List = []
+        losses:List = []
+
+        self.__reset_velocity()
+        batch = self.__prepare_batch(dataset)
         for b in range(len(batch)):
-            nabla_w, nabla_b = self.back_propagation(batch[b], self.__weights, self.__biaises)
-            velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, self.batch_size)
+            accuracy, loss = self.__back_propagation(batch[b], self.__weights, self.__biaises)
+            accuracies.append(accuracy)
+            losses.append(loss)
+            self.__update_velocity_weights(self.config.batch_size)
+        return self.__create_epoch_state(
+            sum(accuracies)/len(accuracies),
+            sum(losses)/len(losses)
+        )
 
-    def stochatic_rms_prop(self, dataset:List):
-        velocity_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+    def __stochatic_rms_prop(self, dataset:List):
+        accuracies:List = []
+        losses:List = []
+
+        self.__reset_velocity()
         for d in dataset:
-            nabla_w, nabla_b = self.back_propagation([d], self.__weights, self.__biaises)
-            velocity_w, velocity_b = self.update_velocity_weights(velocity_w, velocity_b, nabla_w, nabla_b, 1)
+            accuracy, loss = self.__back_propagation([d], self.__weights, self.__biaises)
+            accuracies.append(accuracy)
+            losses.append(loss)
+            self.__update_velocity_weights(1)
 
     #
     # --- 3.2.X ROOT MEAN SQUARE PROPAGATION UTILS ---
     #
-    def update_velocity_weights(self, velo_w:List, velo_b:List, nabla_w:List, nabla_b:List, batch_size:int):
-        for i in range(len(self.__shape) - 1):
-            nabla_w[i] = numpy.array(nabla_w[i], dtype=float)
-            nabla_b[i] = numpy.array(nabla_b[i], dtype=float)
-            velo_w[i] = numpy.array(velo_w[i], dtype=float)
-            velo_b[i] = numpy.array(velo_b[i], dtype=float)
+    def __update_velocity_weights(self, batch_size:int):
+        for i in range(len(self.shape) - 1):
+            self.__nabla_w[i] = numpy.array(self.__nabla_w[i], dtype=float)
+            self.__nabla_b[i] = numpy.array(self.__nabla_b[i], dtype=float)
+            self.__velocity_w[i] = numpy.array(self.__velocity_w[i], dtype=float)
+            self.__velocity_b[i] = numpy.array(self.__velocity_b[i], dtype=float)
             self.__weights[i] = numpy.array(self.__weights[i], dtype=float)
             self.__biaises[i] = numpy.array(self.__biaises[i], dtype=float)
 
-            velo_w[i] = self.velocity_rate * velo_w[i] + (1 - self.velocity_rate)*(numpy.power(nabla_w[i]/batch_size, 2))
-            self.__weights[i] -= (self.learning_rate / (numpy.sqrt(velo_w[i])+EPS)) * (nabla_w[i] / batch_size)
+            self.__velocity_w[i] = self.config.velocity_rate * self.__velocity_w[i] + (1 - self.config.velocity_rate)*(numpy.power(self.__nabla_w[i]/batch_size, 2))
+            self.__weights[i] -= (self.config.learning_rate / (numpy.sqrt(self.__velocity_w[i])+EPS)) * (self.__nabla_w[i] / batch_size)
 
-            velo_b[i] = self.velocity_rate * velo_b[i] + (1 - self.velocity_rate)*(numpy.power(nabla_b[i]/batch_size, 2))
-            self.__biaises[i] -= (self.learning_rate / (numpy.sqrt(velo_b[i]) + EPS)) * (nabla_b[i] / batch_size)
+            self.__velocity_b[i] = self.config.velocity_rate * self.__velocity_b[i] + (1 - self.config.velocity_rate)*(numpy.power(self.__nabla_b[i]/batch_size, 2))
+            self.__biaises[i] -= (self.config.learning_rate / (numpy.sqrt(self.__velocity_b[i]) + EPS)) * (self.__nabla_b[i] / batch_size)
 
-        return velo_w, velo_b
+    def __reset_velocity(self):
+        self.__velocity_w = [numpy.full((len(w),len(w[0])) , 0.0) for w in self.__weights]
+        self.__velocity_b = [numpy.full(len(w), 0.) for w in self.__weights]
+
 
     # ------------------------------------------------------
     # --- 3.3 ADAM METHODS ---
     # ------------------------------------------------------
-    def full_adam(self, dataset:List):
-        momentum = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
-        velocity = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
-        a_head = {"w":[[] for l in range(len(self.__shape) - 1)],"b":[[] for l in range(len(self.__shape) - 1)]}
-        for i in range(len(self.__shape) - 1):
-            a_head["w"][i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum["w"][i]
-            a_head["b"][i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum["b"][i]
-        nabla_w, nabla_b = self.back_propagation(dataset, a_head["w"], a_head["b"])
-        momentum, velocity = self.update_momentum_velocity_weights(momentum, velocity, {"w":nabla_w,"b":nabla_b}, len(dataset))
+    def __full_adam(self, dataset:List):
+        self.__reset_momentum()
+        self.__reset_velocity()
+        self.__reset_ahead()
+        self.__update_ahead()
+        accuracy, loss = self.__back_propagation(dataset, self.__ahead_w, self.__ahead_b)
+        self.__update_momentum_velocity_weights(len(dataset))
+        return self.__create_epoch_state(accuracy, loss)
 
-    def mini_adam(self, dataset:List):
-        momentum = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
-        velocity = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
-        a_head = {"w":[[] for l in range(len(self.__shape) - 1)],"b":[[] for l in range(len(self.__shape) - 1)]}
-        batch = self.prepare_batch(dataset)
+    def __mini_adam(self, dataset:List):
+        accuracies:List = []
+        losses:List = []
+
+        self.__reset_momentum()
+        self.__reset_velocity()
+        self.__reset_ahead()
+        batch = self.__prepare_batch(dataset)
         for b in range(len(batch)):
-            for i in range(len(self.__shape) - 1):
-                a_head["w"][i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum["w"][i]
-                a_head["b"][i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum["b"][i]
-            nabla_w, nabla_b = self.back_propagation(batch[b], a_head["w"], a_head["b"])
-            momentum, velocity = self.update_momentum_velocity_weights(momentum, velocity, {"w":nabla_w,"b":nabla_b}, self.batch_size)
+            self.__update_ahead()
+            accuracy, loss = self.__back_propagation(batch[b], self.__ahead_w, self.__ahead_b)
+            accuracies.append(accuracy)
+            losses.append(loss)
+            self.__update_momentum_velocity_weights(self.config.batch_size)
+        return self.__create_epoch_state(
+            sum(accuracies)/len(accuracies),
+            sum(losses)/len(losses)
+        )
 
-    def stochatic_adam(self, dataset:List):
-        momentum = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
-        velocity = {"w":[numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights], "b":[numpy.full(len(w), 0.) for w in self.__weights]}
-        a_head = {"w":[[] for l in range(len(self.__shape) - 1)],"b":[[] for l in range(len(self.__shape) - 1)]}
+    def __stochatic_adam(self, dataset:List):
+        accuracies:List = []
+        losses:List = []
+
+        self.__reset_momentum()
+        self.__reset_velocity()
+        self.__reset_ahead()
         for d in dataset:
-            for i in range(len(self.__shape) - 1):
-                a_head["w"][i] = numpy.array(self.__weights[i]) - self.momentum_rate * momentum["w"][i]
-                a_head["b"][i] = numpy.array(self.__biaises[i]) - self.momentum_rate * momentum["b"][i]
-            nabla_w, nabla_b = self.back_propagation([d], a_head["w"], a_head["b"])
-            momentum, velocity = self.update_momentum_velocity_weights(momentum, velocity, {"w":nabla_w,"b":nabla_b}, 1)
+            self.__update_ahead()
+            accuracy, loss = self.__back_propagation([d], self.__ahead_w, self.__ahead_b)
+            accuracies.append(accuracy)
+            losses.append(loss)
+            self.__update_momentum_velocity_weights(1)
+        return self.__create_epoch_state(
+            sum(accuracies)/len(accuracies),
+            sum(losses)/len(losses)
+        )
+
     #
     # --- 3.2.X ADAM UTILS ---
     #
-    def update_momentum_velocity_weights(self, momentum:Dict, velo:Dict, nabla:Dict, batch_size:int):
-        for i in range(len(self.__shape) - 1):
-            nabla["w"][i] = numpy.array(nabla["w"][i], dtype=float)
-            nabla["b"][i] = numpy.array(nabla["b"][i], dtype=float)
-            velo["w"][i] = numpy.array(velo["w"][i], dtype=float)
-            velo["b"][i] = numpy.array(velo["b"][i], dtype=float)
-            momentum["w"][i] = numpy.array(momentum["w"][i], dtype=float)
-            momentum["b"][i] = numpy.array(momentum["b"][i], dtype=float)
+    def __update_momentum_velocity_weights(self, batch_size:int):
+        for i in range(len(self.shape) - 1):
+            self.__nabla_w[i] = numpy.array(self.__nabla_w[i], dtype=float)
+            self.__nabla_b[i] = numpy.array(self.__nabla_b[i], dtype=float)
+            self.__velocity_w[i] = numpy.array(self.__velocity_w[i], dtype=float)
+            self.__velocity_b[i] = numpy.array(self.__velocity_b[i], dtype=float)
+            self.__momentum_w[i] = numpy.array(self.__momentum_w[i], dtype=float)
+            self.__momentum_b[i] = numpy.array(self.__momentum_b[i], dtype=float)
             self.__weights[i] = numpy.array(self.__weights[i], dtype=float)
             self.__biaises[i] = numpy.array(self.__biaises[i], dtype=float)
 
-            momentum["w"][i] = self.momentum_rate * momentum["w"][i] + (1 - self.momentum_rate) * (nabla["w"][i]/batch_size)
-            velo["w"][i] = self.velocity_rate * velo["w"][i] + (1 - self.velocity_rate) * (numpy.power(nabla["w"][i]/batch_size, 2))
-            self.__weights[i] -= momentum["w"][i]/(numpy.sqrt(velo["w"][i] + EPS)) * self.learning_rate
+            self.__momentum_w[i] = self.config.momentum_rate * self.__momentum_w[i] + (1 - self.config.momentum_rate) * (self.__nabla_w[i]/batch_size)
+            self.__velocity_w[i] = self.config.velocity_rate * self.__velocity_w[i] + (1 - self.config.velocity_rate) * (numpy.power(self.__nabla_w[i]/batch_size, 2))
+            self.__weights[i] -= self.__momentum_w[i]/(numpy.sqrt(self.__velocity_w[i] + EPS)) * self.config.learning_rate
 
-            momentum["b"][i] = self.momentum_rate * momentum["b"][i] + (1 - self.momentum_rate) * (nabla["b"][i]/batch_size)
-            velo["b"][i] = self.velocity_rate * velo["b"][i] + (1 - self.velocity_rate) * (numpy.power(nabla["b"][i]/batch_size, 2))
-            self.__biaises[i] -= momentum["b"][i]/(numpy.sqrt(velo["b"][i] + EPS)) * self.learning_rate
-
-        return momentum, velo
+            self.__momentum_b[i] = self.config.momentum_rate * self.__momentum_b[i] + (1 - self.config.momentum_rate) * (self.__nabla_b[i]/batch_size)
+            self.__velocity_b[i] = self.config.velocity_rate * self.__velocity_b[i] + (1 - self.config.velocity_rate) * (numpy.power(self.__nabla_b[i]/batch_size, 2))
+            self.__biaises[i] -= self.__momentum_b[i]/(numpy.sqrt(self.__velocity_b[i] + EPS)) * self.config.learning_rate
 
     # ------------------------------------------------------
     # --- 3.X TRAINING UTILS ---
     # ------------------------------------------------------
     
-    def back_propagation(self, dataset:List, weights:List, biaises:List):
-        nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
-        nabla_b = [numpy.full(len(w), 0.) for w in self.__weights]
-        count = 0
+    def __back_propagation(self, dataset:List, weights:List, biaises:List) -> tuple[float, float]:
+        accuracies:List = []
+        losses:List = []
+
+        self.__reset_nabla()
         for d in dataset:
             dn_w = []
             dn_b = []
-            if len(d["label"]) != self.__shape[-1]:
+            if len(d["label"]) != self.shape[-1]:
                 logger.info("The label need to have the same size than output layer")
                 raise Exception()
-            out = self.forward_pass(d["data"], weights, biaises)
-            delta = self.__activation.delta(out[-1], d["label"])
+            out = self.__forward_pass(d["data"], weights, biaises)
+            losses.append(self.__loss_fnc(out[-1], d["label"]))
+            accuracies.append(1 if step(out[-1], 0.5) == d["label"] else 0)
+            delta = self.__act_fnc.delta(out[-1], d["label"])
             dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[-2])))
             dn_b.insert(0, delta)
-            idx = len(self.__shape)-3
+            idx = len(self.shape)-3
             while idx >= 0:
-                prime = self.__activation.prime(out[idx+1])
+                prime = self.__act_fnc.prime(out[idx+1])
                 delta = numpy.dot(numpy.transpose(weights[idx+1]), delta) * prime
                 dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[idx])))
-                dn_b.insert(0, delta) 
+                dn_b.insert(0, delta)
                 idx-=1
-            for i in range(len(self.__shape) - 1):
-                nabla_w[i] = numpy.array(numpy.array(nabla_w[i]) + numpy.array(dn_w[i]))
-                nabla_b[i] = numpy.array(numpy.array(nabla_b[i]) + numpy.array(dn_b[i]))
-        return nabla_w, nabla_b
+            self.__update_nabla(dn_w, dn_b)
 
-    def prepare_batch(self, dataset:List):
-        if len(dataset) < self.batch_size * 2:
+        return sum(accuracies)/len(accuracies), sum(losses)/len(losses)
+
+    def __prepare_batch(self, dataset:List):
+        if len(dataset) < self.config.batch_size * 2:
             logger.error("data set to small to be used with this batch size")
             raise Exception()
-        ds_len = int(len(dataset) / self.batch_size) * self.batch_size
+        ds_len = int(len(dataset) / self.config.batch_size) * self.config.batch_size
         numpy.random.shuffle(dataset)
-        batch = [[dataset[i] for i in range(j, j+self.batch_size)] for j in range(0, ds_len, self.batch_size)]
+        batch = [[dataset[i] for i in range(j, j+self.config.batch_size)] for j in range(0, ds_len, self.config.batch_size)]
         return batch
 
-    def forward_pass(self, input:List, weights:List, biaises:List):
+    def __forward_pass(self, input:List, weights:List, biaises:List):
         out = []
         out.append(input)
-        for l in range(len(self.__shape) - 2):
-            out.append(self.__activation.activation(self.fire_layer(weights[l], biaises[l], out[-1])))
-        out.append(self.__output_activation.activation(self.fire_layer(weights[-1], biaises[-1], out[-1])))
+        for l in range(len(self.shape) - 2):
+            out.append(self.__act_fnc.activation(self.__fire_layer(weights[l], biaises[l], out[-1])))
+        out.append(self.__output_activation.activation(self.__fire_layer(weights[-1], biaises[-1], out[-1])))
         return out
     
-    def fire_layer(self, weight:List, biaises:List, input:List):
+    def __fire_layer(self, weight:List, biaises:List, input:List):
         res = [numpy.dot(w, input) + b for w,b in zip(weight, biaises)]
         return res
+    
+    def __reset_nabla(self):
+        self.__nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.__weights]
+        self.__nabla_b = [numpy.full(len(w), 0.) for w in self.__weights]
+
+    def __update_nabla(self, dn_w:Sequence, dn_b:Sequence):
+        for i in range(len(self.shape) - 1):
+            self.__nabla_w[i] = numpy.array(numpy.array(self.__nabla_w[i]) + numpy.array(dn_w[i]))
+            self.__nabla_b[i] = numpy.array(numpy.array(self.__nabla_b[i]) + numpy.array(dn_b[i]))
 
 
     # ======================================================
     # --- 7. UTILS ---
     # ======================================================
-    def checkNetwork(self):
+    def __checkNetwork(self):
         print("-- NETWORK --")
         print("General options:")
-        print(f" -learning rate: {self.learning_rate}")
-        print(f" -epochs: {self.epoch}")
-        print(f" -batch size: {self.batch_size}")
-        print(f" -optimisation: {self.optimisation_name}")
-        print(f" -loss: {self.loss_name}")
+        print(f" -learning rate: {self.config.learning_rate}")
+        print(f" -epochs: {self.config.epoch}")
+        print(f" -batch size: {self.config.batch_size}")
+        print(f" -optimisation: {self.config.optimisation_name}")
+        print(f" -loss: {self.config.loss_name}")
         print()
         print("--LAYERS--")
         print(" -weights:")
@@ -546,12 +612,12 @@ class Network:
     
     def fire(self, input:numpy.array) -> numpy.array:
         act_input = input
-        for l in range(len(self.__shape) - 2):
-            act_input = numpy.array(self.__activation.activation(self.fire_layer(self.__weights[l], self.__biaises[l], act_input)))
-        act_input = numpy.array(self.__output_activation.activation(self.fire_layer(self.__weights[-1], self.__biaises[-1], act_input)))
+        for l in range(len(self.shape) - 2):
+            act_input = numpy.array(self.__act_fnc.activation(self.__fire_layer(self.__weights[l], self.__biaises[l], act_input)))
+        act_input = numpy.array(self.__output_activation.activation(self.__fire_layer(self.__weights[-1], self.__biaises[-1], act_input)))
         return act_input
     
-    def save_training(
+    def __save_training(
             self,
             accuracy:float=None,
             precision:float=None,
@@ -562,12 +628,12 @@ class Network:
             min_testing_loss:float=None
     ):
         save_to_history(
-            optimizer=self.optimisation_name,
-            activation_function=self.activation_name,
-            loss_function=self.activation_name,
-            epoch=self.epoch,
-            learning_rate=self.learning_rate,
-            network_shape=self.__shape,
+            optimizer=self.config.optimisation_name,
+            activation_function=self.config.activation_name,
+            loss_function=self.config.loss_name,
+            epoch=self.config.epoch,
+            learning_rate=self.config.learning_rate,
+            network_shape=self.config.shape,
             min_training_loss=min_training_loss,
             min_testing_loss=min_testing_loss,
             accuracy=accuracy,
@@ -577,11 +643,31 @@ class Network:
             time=time
         )
     
+    def __print_epoch_state(
+            self,
+            epoch:int,
+            training_accuracy:float,
+            training_loss:float,
+            testing_accuracy:float,
+            testing_loss:float
+    ):
+        message = (
+            "===============================\n"
+            f"At epoch {epoch}/{self.config.epoch}"
+            "=== Training ===\n"
+            f"Accuracy: {training_accuracy},\n"
+            f"Loss: {training_loss},\n"
+            "=== Testing ===\n"
+            f"Accuracy: {testing_accuracy},\n"
+            f"Loss: {testing_loss},\n"
+            "==============================\n"
+        )
+        logger.info(message)
 
-
-    
-
-
-
+    def __create_epoch_state(self, accuracy:float, loss:float) -> Dict:
+        return {
+            "accuracy": accuracy,
+            "loss": loss
+        }
         
     

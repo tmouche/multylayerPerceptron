@@ -1,5 +1,4 @@
 
-
 def step(z, center:float):
     if isinstance(z, float):
         return 1. if z > center else 0.
