@@ -35,7 +35,7 @@ def classification(
     losses:List = []
     tp = tn = fp = fn = 0
     for d in ds_test:
-        output.append(np.clip(net.fire(d["data"]), 1e-8, 1-1e-8))
+        output.append(np.clip(net._fire(d["data"]), 1e-8, 1-1e-8))
         labels.append(d["label"])
         if step(output[-1], 0.5) == [1]:
             if labels[-1] == [1]:

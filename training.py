@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from core.network import Network
+from ml_tools.evaluations import classification
+from core.network import Network, NetworkConfig
 from typing import List
 
 def main():
@@ -32,7 +33,7 @@ def main():
                 print(f"Error log: the training option should be unique and look like %--training *path_to_file*%")
                 exit(1)
             train_file = args[i][1]
-        if args[i][0] == "--testing":
+        elif args[i][0] == "--testing":
             if len(args[i]) != 2 or test_file:
                 print(f"Error log: the testing option should be unique and look like %--testing *path_to_file*%")
                 exit(1)
@@ -63,11 +64,24 @@ def main():
         data_test[-1]["label"] = [1] if df_train[i, 0] == 'M' else [0]
         data_test[-1]["data"] = np.array(df_test[i][1:]) 
     try:
-        myNet = Network()
-        myNet.
+        myNet = Network(NetworkConfig(
+            learning_rate=0.05,
+            epoch=300,
+            batch_size=4,
+            loss_threshold=0.04,
+            shape=[30, 10, 1],
+            evaluation=classification,
+            activation_name="sigmoid",
+            loss_name="binary_cross_entropy",
+            output_activation_name="sigmoid",
+            initialisation_name="random uniform",
+            optimisation_name="mini_nag"
+        ))
     except Exception as e:
         print(f"[FATAL] -> The network's configuration failed: {e}")
         exit(1)
+    myNet.option_visu_training = True
+    myNet.train(data_train, data_test)
     return
 
 
