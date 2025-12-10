@@ -433,28 +433,28 @@ class Network:
     # --- 3.3 ADAM METHODS ---
     # ------------------------------------------------------
     def _full_adam(self, dataset:List):
-        self._reset_momentum()
-        self._reset_velocity()
-        self._reset_ahead()
-        self._update_ahead()
+        self._nag_init_momentum()
+        self._rms_init_velocity()
+        self._nag_init_ahead()
+        self._nag_update_ahead()
         accuracy, loss = self._back_propagation(dataset, self._ahead_w, self._ahead_b)
-        self._update_momentum_velocity_weights(len(dataset))
+        self._adam_update_weights(len(dataset))
         return self._create_epoch_state(accuracy, loss)
 
     def _mini_adam(self, dataset:List):
         accuracies:List = []
         losses:List = []
 
-        self._reset_momentum()
-        self._reset_velocity()
-        self._reset_ahead()
+        self._nag_init_momentum()
+        self._rms_init_velocity()
+        self._nag_init_ahead()
         batch = self._prepare_batch(dataset)
         for b in range(len(batch)):
-            self._update_ahead()
+            self._nag_update_ahead()
             accuracy, loss = self._back_propagation(batch[b], self._ahead_w, self._ahead_b)
             accuracies.append(accuracy)
             losses.append(loss)
-            self._update_momentum_velocity_weights(self.config.batch_size)
+            self._adam_update_weights(self.config.batch_size)
         return self._create_epoch_state(
             sum(accuracies)/len(accuracies),
             sum(losses)/len(losses)
@@ -464,15 +464,15 @@ class Network:
         accuracies:List = []
         losses:List = []
 
-        self._reset_momentum()
-        self._reset_velocity()
-        self._reset_ahead()
+        self._nag_init_momentum()
+        self._rms_init_velocity()
+        self._nag_init_ahead()
         for d in dataset:
-            self._update_ahead()
+            self._nag_update_ahead()
             accuracy, loss = self._back_propagation([d], self._ahead_w, self._ahead_b)
             accuracies.append(accuracy)
             losses.append(loss)
-            self._update_momentum_velocity_weights(1)
+            self._adam_update_weights(1)
         return self._create_epoch_state(
             sum(accuracies)/len(accuracies),
             sum(losses)/len(losses)
@@ -481,17 +481,8 @@ class Network:
     #
     # --- 3.2.X ADAM UTILS ---
     #
-    def _update_momentum_velocity_weights(self, batch_size:int):
+    def _adam_update_weights(self, batch_size:int):
         for i in range(len(self.config.shape) - 1):
-            self._nabla_w[i] = numpy.array(self._nabla_w[i], dtype=float)
-            self._nabla_b[i] = numpy.array(self._nabla_b[i], dtype=float)
-            self._velocity_w[i] = numpy.array(self._velocity_w[i], dtype=float)
-            self._velocity_b[i] = numpy.array(self._velocity_b[i], dtype=float)
-            self._momentum_w[i] = numpy.array(self._momentum_w[i], dtype=float)
-            self._momentum_b[i] = numpy.array(self._momentum_b[i], dtype=float)
-            self._weights[i] = numpy.array(self._weights[i], dtype=float)
-            self._biaises[i] = numpy.array(self._biaises[i], dtype=float)
-
             self._momentum_w[i] = self.config.momentum_rate * self._momentum_w[i] + (1 - self.config.momentum_rate) * (self._nabla_w[i]/batch_size)
             self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate) * (numpy.power(self._nabla_w[i]/batch_size, 2))
             self._weights[i] -= self._momentum_w[i]/(numpy.sqrt(self._velocity_w[i] + EPS)) * self.config.learning_rate
@@ -499,8 +490,6 @@ class Network:
             self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (1 - self.config.momentum_rate) * (self._nabla_b[i]/batch_size)
             self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate) * (numpy.power(self._nabla_b[i]/batch_size, 2))
             self._biaises[i] -= self._momentum_b[i]/(numpy.sqrt(self._velocity_b[i] + EPS)) * self.config.learning_rate
-
-
 
 
     # ------------------------------------------------------

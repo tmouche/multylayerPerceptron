@@ -65,17 +65,17 @@ def main():
         data_test[-1]["data"] = np.array(df_test[i][1:]) 
     try:
         myNet = Network(NetworkConfig(
-            learning_rate=0.05,
+            learning_rate=0.5,
             epoch=300,
             batch_size=4,
-            loss_threshold=0.04,
-            shape=[30, 10, 1],
+            loss_threshold=0.00,
+            shape=[30, 64, 64, 1],
             evaluation=classification,
             activation_name="sigmoid",
             loss_name="binary_cross_entropy",
             output_activation_name="sigmoid",
             initialisation_name="random uniform",
-            optimisation_name="mini_nag"
+            optimisation_name="stochatic_gd"
         ))
     except Exception as e:
         print(f"[FATAL] -> The network's configuration failed: {e}")
