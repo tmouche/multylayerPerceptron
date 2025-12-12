@@ -148,6 +148,7 @@ class Network:
     def _check_activation(self):
         loss_name = '_'.join(str.lower(self.config.loss_name).split())
         act_name = '_'.join(str.lower(self.config.activation_name).split())
+        act_output_name = '_'.join(str.lower(self.config.output_activation_name).split())
         if act_name == "softmax":
             logger.error("Softmax can not be used as activation for hidden layers")
             raise Exception()
@@ -160,6 +161,11 @@ class Network:
             self._act_obj = getattr(Activations, act_name)(loss_name)
         except AttributeError:
             logger.error(f"Activation function {act_name} unknown")
+            raise Exception()
+        try:
+            self._output_act_obj = getattr(Activations, act_output_name)(loss_name)
+        except AttributeError:
+            logger.error(f"Activation function {act_output_name} unknown")
             raise Exception()
         
     def _init_initialisation(self):
@@ -199,11 +205,6 @@ class Network:
         if self.output_activation_name == "softmax" and output_size < 2:
             logger.error("Softmax needs atleast two output neurons")
             raise Exception()
-        try:
-            self._output_act_obj = getattr(Activations, self.config.output_activation_name)(self.config.loss_name)
-        except AttributeError:
-            logger.error(f"Activation function {self.config.output_activation_name} unknown")
-            raise Exception()
     
     def _create_layers(self, size:int, prev_size:int):
         self._weights.append(self._init_fnc(shape=(size,prev_size)))
@@ -231,7 +232,7 @@ class Network:
             testing:Dict = self._eval_fnc(self, self._loss_fnc, ds_test)
             
             accuracies['testing'].append(testing.get("accuracy"))
-            accuracies['training'].append(testing.get("accuracy"))
+            accuracies['training'].append(training.get("accuracy"))
             losses['testing'].append(testing.get("loss"))
             losses['training'].append(training.get("loss"))
             
@@ -243,7 +244,7 @@ class Network:
                     testing_accuracy= testing.get("accuracy"),
                     testing_loss= testing.get("loss")
                 )
-            if self.config.loss_threshold and abs(training["loss"]) < self.config.loss_threshold:
+            if self.config.loss_threshold and abs(testing["loss"]) < self.config.loss_threshold:
                 break
         time_stamp = time.perf_counter() - start_time    
         self._save_training(
@@ -299,8 +300,8 @@ class Network:
     #
     def _gd_update_weights(self, batch_size:int):
         for i in range(len(self.config.shape) - 1):
-            self._weights[i] -= self.config.learning_rate * self._nabla_w[i] / batch_size
-            self._biaises[i] -= self.config.learning_rate * self._nabla_b[i] / batch_size
+            self._weights[i] -= (self.config.learning_rate * (self._nabla_w[i] / batch_size))
+            self._biaises[i] -= (self.config.learning_rate * (self._nabla_b[i] / batch_size))
 
 
     # ------------------------------------------------------
@@ -511,7 +512,7 @@ class Network:
             out = self._forward_pass(d["data"], weights, biaises)
             losses.append(self._loss_fnc(out[-1], d["label"]))
             accuracies.append(1 if step(out[-1], 0.5) == d["label"] else 0)
-            delta = self._act_obj.delta(out[-1], d["label"])
+            delta = self._output_act_obj.delta(out[-1], d["label"])
             dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[-2])))
             dn_b.insert(0, delta)
             idx = len(self.config.shape)-3
@@ -615,7 +616,7 @@ class Network:
     ):
         message = (
             "===============================\n"
-            f"At epoch {epoch}/{self.config.epoch}"
+            f"At epoch {epoch}/{self.config.epoch}\n"
             "=== Training ===\n"
             f"Accuracy: {training_accuracy},\n"
             f"Loss: {training_loss},\n"

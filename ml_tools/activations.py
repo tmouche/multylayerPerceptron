@@ -64,7 +64,14 @@ class sigmoid(__Activation):
     def _binary_cross_entropy_grad(self, y, e):
         loss = np.array(y) - np.array(e)
         return loss
+    
+    def _categorical_cross_entropy_grad(self, y, e):
+        loss = np.array(y) - np.array(e)
+        return loss
 
+    def _spare_cross_entropy_grad(self, y, e):
+        loss = np.array(y) - np.array(e)
+        return loss
 
 
 class tanh(__Activation):
@@ -148,7 +155,10 @@ class leaky_relu(__Activation):
         loss = abs(np.array(y) - np.array(e))
         prime = self.prime(y)
         return loss * prime
-
+    
+    def _spare_cross_entropy_grad(self, y, e):
+        loss = np.array(y) - np.array(e)
+        return loss
 
 
 class softmax(__Activation):

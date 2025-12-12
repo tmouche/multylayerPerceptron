@@ -17,3 +17,9 @@
 - ya des plots a faire sur le training
 
 - peut etre qu il faut seed les randoms pour que quand on benchmark deux trucs on puisse avoir la meme initialisation
+
+- ATTENTION AUX MATH DOMAINS ERRORS
+
+- la back prop fonctionne pas lol
+
+- revoir la maniere dont les weigths sont updated

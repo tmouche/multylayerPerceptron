@@ -22,6 +22,8 @@ from utils.logger import Logger
 
 logger = Logger()
 
+POSITIV = [1, 0]
+
 def classification(
     net:Network,
     loss_fct:Callable[
@@ -35,15 +37,15 @@ def classification(
     losses:List = []
     tp = tn = fp = fn = 0
     for d in ds_test:
-        output.append(np.clip(net._fire(d["data"]), 1e-8, 1-1e-8))
+        output.append(net._fire(d["data"]))
         labels.append(d["label"])
-        if step(output[-1], 0.5) == [1]:
-            if labels[-1] == [1]:
+        if step(output[-1], 0.5) == POSITIV:
+            if labels[-1] == POSITIV:
                 tp += 1 
             else:
                 fp += 1
         else:
-            if labels[-1] == [1]:
+            if labels[-1] == POSITIV:
                 fn += 1
             else:
                 tn += 1
