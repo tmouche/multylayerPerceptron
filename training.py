@@ -125,18 +125,18 @@ def main():
     
     df_train, df_test = create_normalized_data(training_path=train_file, testing_path=test_file)
     l_train, l_test = process_df_2_output(df_train=df_train, df_test=df_test)
-    EPOCH = 1000
+    EPOCH = 350
     try:
         myNet = Network(NetworkConfig(
             learning_rate=0.0025,
             epoch=EPOCH,
             batch_size=4,
             loss_threshold=0.004,
-            shape=[24, 16, 16, 2],
+            shape=[24, 16, 2],
             evaluation=classification,
-            activation_name="leaky relu",
+            activation_name="sigmoid",
             loss_name="mean square error",
-            output_activation_name="leaky relu",
+            output_activation_name="sigmoid",
             initialisation_name="he uniform",
             optimisation_name="mini_adam"
         ))
