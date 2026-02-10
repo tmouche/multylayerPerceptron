@@ -1,7 +1,20 @@
-https://medium.com/data-science/derivative-of-the-softmax-function-and-the-categorical-cross-entropy-loss-ffceefc081d1 -> soft max et cross entropy loss
+
 https://eli.thegreenplace.net/2016/the-softmax-function-and-its-derivative/
+
+https://www.geeksforgeeks.org/deep-learning/adam-optimizer/
+https://www.geeksforgeeks.org/deep-learning/binary-cross-entropy-log-loss-for-binary-classification/
+https://www.geeksforgeeks.org/deep-learning/categorical-cross-entropy-in-multi-class-classification/
+https://www.geeksforgeeks.org/deep-learning/rmsprop-optimizer-in-deep-learning/
+https://www.geeksforgeeks.org/machine-learning/backpropagation-in-neural-network/
+https://www.geeksforgeeks.org/machine-learning/ml-momentum-based-gradient-optimizer-introduction/
+https://www.geeksforgeeks.org/machine-learning/what-is-sparse-categorical-crossentropy/
+
+https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
+
+https://medium.com/@piyushkashyap045/understanding-rmsprop-a-simple-guide-to-one-of-deep-learnings-powerful-optimizers-403baeed9922
+https://medium.com/data-science/derivative-of-the-softmax-function-and-the-categorical-cross-entropy-loss-ffceefc081d1
+
 https://mmuratarat.github.io/2019-01-27/derivation-of-softmax-function
 
-https://www.geeksforgeeks.org/machine-learning/backpropagation-in-neural-network/
-
 https://developer.nvidia.com/blog/a-data-scientists-guide-to-gradient-descent-and-backpropagation-algorithms/
+

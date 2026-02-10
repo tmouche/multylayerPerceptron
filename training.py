@@ -1,14 +1,12 @@
+from core.network import Network, NetworkConfig
+from ml_tools.evaluations import classification
+from typing import List, Dict, Sequence
+from utils.constant import COLUMNS, DROP_COLUMNS
 
-import sys
 import numpy
 import pandas
 import plotly.graph_objects as go 
-
-from ml_tools.evaluations import classification
-from core.network import Network, NetworkConfig
-from typing import List, Dict, Sequence
-
-DROP_COLUMN = [0, 10, 11, 12, 20, 26, 31]
+import sys
 
 def	normalize(
         df:pandas.DataFrame,
@@ -38,17 +36,19 @@ def create_normalized_data(
     ) -> tuple[pandas.DataFrame, pandas.DataFrame]:
     try:
         df_train = pandas.read_csv(training_path, header=None)
+        df_train.columns = COLUMNS
     except:
         print(f"Error log: can not process {training_path}")
         raise FileNotFoundError(training_path)
     try:
         df_test = pandas.read_csv(testing_path, header=None)
+        df_test.columns = COLUMNS
     except:
         print(f"Error log: can not process {testing_path}")
         raise FileNotFoundError(training_path)
 
-    df_train = df_train.drop(DROP_COLUMN, axis=1)
-    df_test = df_test.drop(DROP_COLUMN, axis=1)
+    df_train.drop(columns=DROP_COLUMNS, inplace=True)
+    df_test.drop(columns=DROP_COLUMNS, inplace=True)
     normalized_df_train:pandas.DataFrame = normalize(df_train, 1)
     normalized_df_test:pandas.DataFrame = normalize(df_test, 1) 
 
@@ -132,7 +132,7 @@ def main():
             epoch=EPOCH,
             batch_size=4,
             loss_threshold=0.004,
-            shape=[24, 16, 2],
+            shape=[9, 16, 2],
             evaluation=classification,
             activation_name="sigmoid",
             loss_name="mean square error",

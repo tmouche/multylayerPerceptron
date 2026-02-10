@@ -1,21 +1,20 @@
-import sys
-import yaml
-import time
-import math
-import numpy
-import matplotlib as plt
+from core.layer import Layer
+from dataclasses import dataclass
+from ml_tools.utils import step
+from ml_tools.activations import __Activation
+from typing import List, Dict, Sequence, Optional
+from utils.decorator import call_decorator
+from utils.exception import Format
+from utils.history import save_to_history
+from utils.logger import Logger
+
 import ml_tools.initialisations as Initialisations
 import ml_tools.activations as Activations
 import ml_tools.losses as Losses
+import numpy
+import time
+import json
 
-from ml_tools.utils import step
-from ml_tools.activations import __Activation
-from dataclasses import dataclass
-
-from utils.decorator import call_decorator
-from utils.history import save_to_history
-from typing import List, Dict, Sequence, Optional
-from utils.logger import Logger
 logger = Logger()
 
 EPS = 1e-8
@@ -43,6 +42,7 @@ class NetworkConfig:
     loss_threshold: Optional[float] = None
 
 
+
 # ==========================================================
 # NETWORK CLASS
 # ==========================================================
@@ -65,6 +65,8 @@ class Network:
     _init_fnc:callable = None
 
     # Network structure
+    layers: List[Layer]
+
     _weights:List = None
     _biaises:List = None
 
@@ -84,27 +86,36 @@ class Network:
     # --- 2. INITIALIZATION ---
     # ======================================================
 
-    def __init__(self, config:NetworkConfig):
-        self.config = config
-        self.apply_config()
+    # def __init__(self, config:NetworkConfig):
+    #     self.config = config
+    #     self._apply_config()
 
-    def apply_config(self):
-        """
-        Load YAML config and initialize network structure and parameters.
-        """
-        logger.info("Network initialization starting...")
-        logger.info("Configuration starting...")
-        self._check_mandatories()
-        self._check_optimisation()
-        self._check_activation()
-        self._init_initialisation()
-        self._eval_fnc = self.config.evaluation
-        logger.info("Configuration complete...")
-        logger.info("Layers initialization starting...")
-        self._init_layers()
-        logger.info("Layers initialization complete...")
-        logger.info("Network initialization complete...")
-        self._is_apply = True
+    # def _apply_config(self):
+    #     logger.info("Network initialization starting...")
+    #     logger.info("Configuration starting...")
+    #     self._check_mandatories()
+    #     self._check_optimisation()
+    #     self._check_activation()
+    #     self._init_initialisation()
+    #     self._eval_fnc = self.config.evaluation
+    #     logger.info("Configuration complete...")
+    #     logger.info("Layers initialization starting...")
+    #     self._init_layers()
+    #     logger.info("Layers initialization complete...")
+    #     logger.info("Network initialization complete...")
+    #     self._is_apply = True
+
+    def __init__(self, *args):
+        
+        if not args:
+            logger.error(f"Missing parameters passed to {self.__class}")
+
+        for a in args:
+            if isinstance(a, Layer) == False:
+                logger.error(f"Unrecognized argument passed to {self.__class__.__qualname__}: {a}")
+                raise Format(context="Layer")
+
+            
 
     # ------------------------------------------------------
     # --- 2.1 CONFIGURATION INITIALISATION ---
@@ -633,4 +644,12 @@ class Network:
             "loss": loss
         }
         
+    def save_model(self, path_to_file: str):
+        raw_data: Dict = {
+            "shape": self.config.shape,
+            "activation": self.config.activation_name,
+            "output activation": self.config.output_activation_name,
+            "weight": self._weights,
+            "biaises": self._biaises
+        }    
     
