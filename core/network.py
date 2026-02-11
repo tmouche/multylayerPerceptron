@@ -294,7 +294,11 @@ class Network:
     # --- 3. TRAINING METHODS ---
     # ======================================================
     @call_decorator
-    def train(self, ds_train:List, ds_test:List) -> tuple[Sequence, Sequence]:
+    def train(
+            self,
+            ds_train:List[Dict[str, List[float]]], 
+            ds_test:List[Dict[str, List[float]]]
+        ) -> tuple[Sequence, Sequence]:
         accuracies:Dict = {'testing': [], 'training': []}
         losses:Dict = {'testing': [], 'training': []}
         

@@ -57,15 +57,44 @@ def create_normalized_data(
 def process_df_1_output(
         df_train:pandas.DataFrame,
         df_test:pandas.DataFrame
-    ) -> tuple[Sequence[Dict], Sequence[Dict]]:
-    data_train:List = []
+    ) -> tuple[List[Dict[str, numpy.array]], List[Dict[str, numpy.array]]]:
+    """
+    Convert training and testing DataFrames into structured datasets
+    for a single binary output model.
+
+    Each row of the input DataFrames is transformed into a dictionary
+    containing:
+        - "label": Binary target encoded as [1] if the first column is 'M',
+                   otherwise [0].
+        - "data": Feature vector extracted from remaining columns and
+                  converted into a NumPy array.
+
+    Args:
+        df_train (pandas.DataFrame):
+            Training dataset where the first column contains class labels
+            and the remaining columns contain features.
+
+        df_test (pandas.DataFrame):
+            Testing dataset with the same structure as `df_train`.
+
+    Returns:
+        tuple[
+            List[Dict[str, numpy.array]],
+            List[Dict[str, numpy.array]]
+        ]:
+            A tuple containing:
+                - Processed training dataset.
+                - Processed testing dataset.
+    """
+    data_train: List[Dict[str, numpy.array]] = list()
     for i in range(len(df_train)):
-        data_train.append({"label":numpy.array, "data":numpy.array})
+        data_train.append(dict())
         data_train[-1]["label"] = [1] if df_train.iloc[i, 0] == 'M' else [0]
         data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:])
-    data_test:List = []
+
+    data_test: List[Dict[str, numpy.array]] = list()
     for i in range(len(df_test)):
-        data_test.append({"label":numpy.array, "data":numpy.array})
+        data_test.append(dict())
         data_test[-1]["label"] = [1] if df_test.iloc[i, 0] == 'M' else [0]
         data_test[-1]["data"] = numpy.array(df_test.iloc[i, 1:])
     return data_train, data_test
@@ -73,18 +102,49 @@ def process_df_1_output(
 def process_df_2_output(
         df_train:pandas.DataFrame,
         df_test:pandas.DataFrame
-    ) -> tuple[Sequence[Dict], Sequence[Dict]]:
-    data_train:List = []
+    ) -> tuple[List[Dict[str, numpy.array]], List[Dict[str, numpy.array]]]:
+    """
+    Convert training and testing DataFrames into structured datasets
+    for a two-output (one-hot encoded) classification model.
+
+    Each row of the input DataFrames is transformed into a dictionary
+    containing:
+        - "label": One-hot encoded target vector:
+            - [1, 0] if the first column is 'M'
+            - [0, 1] otherwise
+        - "data": Feature vector extracted from remaining columns and
+                  converted into a NumPy array.
+
+    Args:
+        df_train (pandas.DataFrame):
+            Training dataset where the first column contains class labels
+            and the remaining columns contain features.
+
+        df_test (pandas.DataFrame):
+            Testing dataset with the same structure as `df_train`.
+
+    Returns:
+        tuple[
+            List[Dict[str, numpy.array]],
+            List[Dict[str, numpy.array]]
+        ]:
+            A tuple containing:
+                - Processed training dataset.
+                - Processed testing dataset.
+    """
+    data_train: List[Dict[str, numpy.array]] = list()
     for i in range(len(df_train)):
-        data_train.append({"label":numpy.array, "data":numpy.array})
-        data_train[-1]["label"] = [1, 0] if df_train.iloc[i, 0] == 'M' else [0, 1]
+        data_train.append({})
+        data_train[-1]["label"] = numpy.array([1, 0]) if df_train.iloc[i, 0] == 'M' else numpy.array([0, 1])
         data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:])
-    data_test:List = []
+
+    data_test: List[Dict[str, numpy.array]] = list()
     for i in range(len(df_test)):
-        data_test.append({"label":numpy.array, "data":numpy.array})
-        data_test[-1]["label"] = [1, 0] if df_test.iloc[i, 0] == 'M' else [0, 1]
+        data_test.append({})
+        data_test[-1]["label"] = numpy.array([1, 0]) if df_test.iloc[i, 0] == 'M' else numpy.array([0, 1])
         data_test[-1]["data"] = numpy.array(df_test.iloc[i, 1:])
     return data_train, data_test
+
 
 def main():
     argc = len(sys.argv)
