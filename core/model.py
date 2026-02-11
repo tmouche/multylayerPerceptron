@@ -6,5 +6,5 @@ class Model:
 
     net: Network
 
-
+    
     

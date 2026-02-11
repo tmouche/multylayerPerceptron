@@ -2,12 +2,28 @@ from core.layer import Layer
 from dataclasses import dataclass
 from ml_tools.utils import step
 from ml_tools.activations import __Activation
-from typing import List, Dict, Sequence, Optional
+from typing import (
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+)
 from utils.decorator import call_decorator
-from utils.exception import Format
+from utils.exception import (
+    Format,
+    NetworkException,
+    NetworkInit,
+    NetworkLayerCount,
+    LayerActivation,
+    LayerInit,
+    LayerInitializer,
+    UnexpectedException
+)
 from utils.history import save_to_history
 from utils.logger import Logger
 
+import inspect
 import ml_tools.initialisations as Initialisations
 import ml_tools.activations as Activations
 import ml_tools.losses as Losses
@@ -67,8 +83,8 @@ class Network:
     # Network structure
     layers: List[Layer]
 
-    _weights:List = None
-    _biaises:List = None
+    _weights:numpy.array
+    _biaises:numpy.array
 
     _nabla_w:Sequence = None
     _nabla_b:Sequence = None
@@ -105,15 +121,27 @@ class Network:
     #     logger.info("Network initialization complete...")
     #     self._is_apply = True
 
+
     def __init__(self, *args):
         
         if not args:
-            logger.error(f"Missing parameters passed to {self.__class}")
+            logger.error(f"Missing Parameters")
+            raise NetworkInit(context="No Parameters")
 
         for a in args:
             if isinstance(a, Layer) == False:
-                logger.error(f"Unrecognized argument passed to {self.__class__.__qualname__}: {a}")
+                logger.error(f"Unrecognized argument passed: {a}")
                 raise Format(context="Layer")
+            self.layers.append(a)
+
+        try:
+            self.__init_layers()
+        except (LayerInit, NetworkInit) as iniErr:
+            logger.error(iniErr)
+            raise NetworkException(str(iniErr))
+        except Exception as e:
+            logger.error(f"Unexpected exception: {e}")
+            raise UnexpectedException()
 
             
 
@@ -189,37 +217,78 @@ class Network:
     # ------------------------------------------------------
     # --- 2.2 LAYER INITIALIZATION ---
     # ------------------------------------------------------
-    def _init_layers(self):
-        self._weights = []
-        self._biaises = []
+    # def _init_layers(self):
+    #     self._weights = []
+    #     self._biaises = []
         
-        if len(self.config.shape) < 3:
-            logger.error("The Network has to have at least 3 layers")
-            raise Exception()
+    #     if len(self.config.shape) < 3:
+    #         logger.error("The Network has to have at least 3 layers")
+    #         raise Exception()
 
-        for i in range(1, len(self.config.shape)):
-            if self.config.shape[i] <= 0 or self.config.shape[i-1] <= 0:
-                logger.error("A layer size can not be negativ or egal to 0")
-                raise Exception()
-            self._create_layers(self.config.shape[i], self.config.shape[i-1])
+    #     for i in range(1, len(self.config.shape)):
+    #         if self.config.shape[i] <= 0 or self.config.shape[i-1] <= 0:
+    #             logger.error("A layer size can not be negativ or egal to 0")
+    #             raise Exception()
+    #         self._create_layers(self.config.shape[i], self.config.shape[i-1])
                 
-        try:
-            previous_size = self.config.shape[0]
-            output_size = self.config.shape[-1]
-        except KeyError:
-            logger.error(f"Missing mandatories keys (architecture.input.size, architecture.output.size)")
-            raise Exception()
-        if previous_size <= 0 or output_size <= 0:
-            logger.error(f"The input size and the output size cannot be lower than 1")
-            raise Exception()
-        self.output_activation_name = '_'.join(str.lower(self.config.output_activation_name).split())
-        if self.output_activation_name == "softmax" and output_size < 2:
-            logger.error("Softmax needs atleast two output neurons")
-            raise Exception()
+    #     try:
+    #         previous_size = self.config.shape[0]
+    #         output_size = self.config.shape[-1]
+    #     except KeyError:
+    #         logger.error(f"Missing mandatories keys (architecture.input.size, architecture.output.size)")
+    #         raise Exception()
+    #     if previous_size <= 0 or output_size <= 0:
+    #         logger.error(f"The input size and the output size cannot be lower than 1")
+    #         raise Exception()
+    #     self.output_activation_name = '_'.join(str.lower(self.config.output_activation_name).split())
+    #     if self.output_activation_name == "softmax" and output_size < 2:
+    #         logger.error("Softmax needs atleast two output neurons")
+    #         raise Exception()
     
-    def _create_layers(self, size:int, prev_size:int):
-        self._weights.append(self._init_fnc(shape=(size,prev_size)))
-        self._biaises.append(self._init_fnc(shape=(size)))
+    # def _create_layers(self, size:int, prev_size:int):
+    #     self._weights.append(self._init_fnc(shape=(size,prev_size)))
+    #     self._biaises.append(self._init_fnc(shape=(size)))
+
+    def __init_layers(self):
+        """
+        Initialize network weights and biases for all layers.
+
+        Raises:
+            NetworkLayerCount:
+                If the network contains fewer than three layers.
+
+            LayerActivation:
+                If a layer is missing an activation function.
+
+            LayerInitializer:
+                If a layer is missing a weight initializer.
+
+        Logs:
+            - Error if the network does not contain enough layers.
+            - Error if activation or initializer is missing for a layer.
+        """
+        self._weights = numpy.array([])
+        self._biaises = numpy.array([])
+
+        if len(self.layers) < 3:
+            logger.error(f"Not enough layers")
+            raise NetworkLayerCount()
+        
+        for i in range(1, len(self.layers)):
+            previous_size: int = self.layers[i-1]
+            size: int = self.layers[i]
+
+            if not self.layers[i].initializer:
+                logger.error(f"Missing Activation in layer n*{i+1}")
+                raise LayerActivation(context="Missing")
+            if not self.layers[i].activation:
+                logger.error(f"Missing Initializer in layer n*{i+1}")
+                raise LayerInitializer(context="Missing")
+            self._weights = numpy.append(self._weights, self.layers[i].initializer(shape=(size, previous_size)))
+            self._biaises = numpy.append(self._biaises, self.layers[i].initializer(shape=(size)))
+
+            
+    
 
     # ======================================================
     # --- 3. TRAINING METHODS ---

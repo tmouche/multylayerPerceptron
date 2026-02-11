@@ -22,3 +22,7 @@ DROP_COLUMNS: List[str] = ["ID",
         ]
 
 SPLIT_DATASET: int = 90
+
+ACTIVATION_RESTRICT_SHAPE = {
+    "softmax": 2
+}
