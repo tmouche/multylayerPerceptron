@@ -3,12 +3,17 @@
 UNEXPECTED = "Unexpected Exception catched"
 FORMAT = "Parsing issue with format: "
 
+INIT_ERR = "Initialization failed: "
+
+MODEL = "[MODEL] "
+MODEL_OPTI = "Optimizer not found: "
+MODEL_LOSS = "Loss not found: "
+MODEL_ACTIVATION = "Activation not found: "
+
 NETWORK = "[NETWORK] "
-NETWORK_INIT = "Initialization failed: "
 NETWORK_LAYER_COUNT = "Count of layer has to be greater than 2"
 
 LAYER = "[LAYER] "
-LAYER_INIT = "Layer initialization failed: "
 LAYER_SHAPE = "Shape less or egale to zero"
 LAYER_ACTIVATION = "Layer activation function: "
 LAYER_INITIALIZER = "Layer initializer function: "
@@ -31,6 +36,27 @@ class FunctionalException(Exception):
 #           --CRITICAL EXCEPTION--          #
 #-------------------------------------------#
 
+#           --MODEL EXCEPTION--             #
+class ModelException(CriticalException):
+    def __init__(self, context: str):
+        super().__init__(MODEL + context)
+
+class ModelNetCreate(ModelException):
+    def _init__(self, context: str):
+        super().__init__(INIT_ERR + context)
+
+class ModelOptimizer(ModelException):
+    def __init__(self, context: str):
+        super().__init__(MODEL_OPTI + context)
+
+class ModelLoss(ModelException):
+    def __init__(self, context: str):
+        super().__init__(MODEL_LOSS + context)
+
+class ModelActivation(ModelException):
+    def __init__(self, context: str):
+        super().__init__(MODEL_LOSS + context)
+
 #           --NETWORK EXCEPTION--           #
 class NetworkException(CriticalException):
     def __init__(self, context: str):
@@ -38,11 +64,12 @@ class NetworkException(CriticalException):
 
 class NetworkInit(NetworkException):
     def __init__(self, context: str):
-        super().__init__(NETWORK_INIT + context)
+        super().__init__(INIT_ERR + context)
 
 class NetworkLayerCount(NetworkInit):
     def __init__(self):
         super().__init__(NETWORK_LAYER_COUNT)
+
 
 #           --LAYER EXCEPTION--             #
 class LayerException(CriticalException):
@@ -51,7 +78,7 @@ class LayerException(CriticalException):
 
 class LayerInit(LayerException):
     def __init__(self, context: str):
-        super().__init__(LAYER_INIT + context)
+        super().__init__(INIT_ERR + context)
 
 class LayerActivation(LayerInit):
     def __init__(self, context: str):

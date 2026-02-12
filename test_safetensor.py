@@ -1,35 +1,39 @@
 
-import inspect
+# import inspect
 
-def logger(msg):
-    frame = inspect.currentframe().f_back
-    func_name = frame.f_code.co_name
+# def logger(msg):
+#     frame = inspect.currentframe().f_back
+#     func_name = frame.f_code.co_name
 
-    object_name = ""
-    try:
-        object_name = frame.f_locals['self'].__class__.__qualname__
-    except:
-        object_name = "<module>"
-    print(f"[TEST][{object_name}.{func_name}]-> {msg}")
+#     object_name = ""
+#     try:
+#         object_name = frame.f_locals['self'].__class__.__qualname__
+#     except:
+#         object_name = "<module>"
+#     print(f"[TEST][{object_name}.{func_name}]-> {msg}")
 
 
-def not_in():
-    logger("hello")
+# def not_in():
+#     logger("hello")
 
-class Test:
+# class Test:
 
-    def test_fonction(self):
-        logger("test")
+#     def test_fonction(self):
+#         logger("test")
 
-    @property
-    def __where__(self) -> str:
-        frame = inspect.currentframe().f_back
-        return f"{self.__class__.__qualname__}.{frame.f_code.co_name}"
+#     @property
+#     def __where__(self) -> str:
+#         frame = inspect.currentframe().f_back
+#         return f"{self.__class__.__qualname__}.{frame.f_code.co_name}"
     
 
-tt = Test()
-tt.test_fonction()
-not_in()
+# tt = Test()
+# tt.test_fonction()
+# not_in()
 
 
-logger("hihi")
+# logger("hihi")
+
+import numpy
+
+list: numpy.array[float] = numpy.array([1.2, 1.2])

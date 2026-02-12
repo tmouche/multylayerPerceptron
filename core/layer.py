@@ -10,7 +10,6 @@ from utils.exception import (
 from utils.constant import ACTIVATION_RESTRICT_SHAPE
 from utils.logger import Logger
 
-import ml_tools.activations as Activation
 import ml_tools.initialisations as Initializer
 
 logger = Logger()
@@ -106,11 +105,6 @@ class Layer:
                 if restrict < self.shape:
                     logger.error(f"Activation {self.output_activation} restrict violated with shape {self.shape}")
                     raise LayerActivation("Shape")
-            try:
-                self.activation = getattr(Activation, self.output_activation)
-            except AttributeError:
-                logger.error(f"Unknow activation: {self.output_activation}")
-                raise LayerActivation("Unknow")
         else:
             self.activation = None
 

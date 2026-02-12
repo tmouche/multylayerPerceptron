@@ -2,6 +2,7 @@ from core.network import Network, NetworkConfig
 from ml_tools.evaluations import classification
 from typing import List, Dict, Sequence
 from utils.constant import COLUMNS, DROP_COLUMNS
+from utils.types import ArrayF, FloatT
 
 import numpy
 import pandas
@@ -57,7 +58,7 @@ def create_normalized_data(
 def process_df_1_output(
         df_train:pandas.DataFrame,
         df_test:pandas.DataFrame
-    ) -> tuple[List[Dict[str, numpy.array]], List[Dict[str, numpy.array]]]:
+    ) -> tuple[List[Dict[str, ArrayF]], List[Dict[str, ArrayF]]]:
     """
     Convert training and testing DataFrames into structured datasets
     for a single binary output model.
@@ -79,20 +80,20 @@ def process_df_1_output(
 
     Returns:
         tuple[
-            List[Dict[str, numpy.array]],
-            List[Dict[str, numpy.array]]
+            List[Dict[str, ArrayF]],
+            List[Dict[str, ArrayF]]
         ]:
             A tuple containing:
                 - Processed training dataset.
                 - Processed testing dataset.
     """
-    data_train: List[Dict[str, numpy.array]] = list()
+    data_train: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_train)):
         data_train.append(dict())
         data_train[-1]["label"] = [1] if df_train.iloc[i, 0] == 'M' else [0]
         data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:])
 
-    data_test: List[Dict[str, numpy.array]] = list()
+    data_test: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_test)):
         data_test.append(dict())
         data_test[-1]["label"] = [1] if df_test.iloc[i, 0] == 'M' else [0]
@@ -102,7 +103,7 @@ def process_df_1_output(
 def process_df_2_output(
         df_train:pandas.DataFrame,
         df_test:pandas.DataFrame
-    ) -> tuple[List[Dict[str, numpy.array]], List[Dict[str, numpy.array]]]:
+    ) -> tuple[List[Dict[str, ArrayF]], List[Dict[str, ArrayF]]]:
     """
     Convert training and testing DataFrames into structured datasets
     for a two-output (one-hot encoded) classification model.
@@ -125,20 +126,20 @@ def process_df_2_output(
 
     Returns:
         tuple[
-            List[Dict[str, numpy.array]],
-            List[Dict[str, numpy.array]]
+            List[Dict[str, ArrayF]],
+            List[Dict[str, ArrayF]]
         ]:
             A tuple containing:
                 - Processed training dataset.
                 - Processed testing dataset.
     """
-    data_train: List[Dict[str, numpy.array]] = list()
+    data_train: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_train)):
         data_train.append({})
         data_train[-1]["label"] = numpy.array([1, 0]) if df_train.iloc[i, 0] == 'M' else numpy.array([0, 1])
         data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:])
 
-    data_test: List[Dict[str, numpy.array]] = list()
+    data_test: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_test)):
         data_test.append({})
         data_test[-1]["label"] = numpy.array([1, 0]) if df_test.iloc[i, 0] == 'M' else numpy.array([0, 1])

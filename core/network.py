@@ -22,6 +22,7 @@ from utils.exception import (
 )
 from utils.history import save_to_history
 from utils.logger import Logger
+from utils.types import ArrayF, FloatT
 
 import inspect
 import ml_tools.initialisations as Initialisations
@@ -52,8 +53,8 @@ class NetworkConfig:
     epoch: int = 50
     batch_size: Optional[int] = None
 
-    momentum_rate: float = 0.9
-    velocity_rate: float = 0.9
+    # momentum_rate: float = 0.9
+    # velocity_rate: float = 0.9
 
     loss_threshold: Optional[float] = None
 
@@ -83,8 +84,14 @@ class Network:
     # Network structure
     layers: List[Layer]
 
-    _weights:numpy.array
-    _biaises:numpy.array
+    batch_size: int
+
+    learning_rate: FloatT
+    momentum_rate: FloatT = 0.9
+    velocity_rate: FloatT = 0.9
+
+    weights:numpy.array
+    biaises:numpy.array
 
     _nabla_w:Sequence = None
     _nabla_b:Sequence = None
@@ -122,13 +129,9 @@ class Network:
     #     self._is_apply = True
 
 
-    def __init__(self, *args):
+    def __init__(self, layers :List[Layer]):
         
-        if not args:
-            logger.error(f"Missing Parameters")
-            raise NetworkInit(context="No Parameters")
-
-        for a in args:
+        for a in layers:
             if isinstance(a, Layer) == False:
                 logger.error(f"Unrecognized argument passed: {a}")
                 raise Format(context="Layer")
@@ -138,7 +141,7 @@ class Network:
             self.__init_layers()
         except (LayerInit, NetworkInit) as iniErr:
             logger.error(iniErr)
-            raise NetworkException(str(iniErr))
+            raise NetworkInit(str(iniErr))
         except Exception as e:
             logger.error(f"Unexpected exception: {e}")
             raise UnexpectedException()
@@ -267,8 +270,8 @@ class Network:
             - Error if the network does not contain enough layers.
             - Error if activation or initializer is missing for a layer.
         """
-        self._weights = numpy.array([])
-        self._biaises = numpy.array([])
+        self.weights = numpy.array([])
+        self.biaises = numpy.array([])
 
         if len(self.layers) < 3:
             logger.error(f"Not enough layers")
@@ -284,8 +287,8 @@ class Network:
             if not self.layers[i].activation:
                 logger.error(f"Missing Initializer in layer n*{i+1}")
                 raise LayerInitializer(context="Missing")
-            self._weights = numpy.append(self._weights, self.layers[i].initializer(shape=(size, previous_size)))
-            self._biaises = numpy.append(self._biaises, self.layers[i].initializer(shape=(size)))
+            self.weights = numpy.append(self.weights, self.layers[i].initializer(shape=(size, previous_size)))
+            self.biaises = numpy.append(self.biaises, self.layers[i].initializer(shape=(size)))
 
             
     
@@ -346,7 +349,7 @@ class Network:
     # --- 3.1 GRADIENT DESCEND METHODS ---
     # ------------------------------------------------------
     def _full_gd(self, dataset:List) -> Dict:
-        accuracy, loss = self._back_propagation(dataset, self._weights, self._biaises)
+        accuracy, loss = self._back_propagation(dataset, self.weights, self.biaises)
         self._gd_update_weights(len(dataset))
         return self._create_epoch_state(accuracy, loss)
     
@@ -356,7 +359,7 @@ class Network:
 
         batch = self._prepare_batch(dataset)
         for b in range(len(batch)):
-            accuracy, loss = self._back_propagation(batch[b], self._weights, self._biaises)
+            accuracy, loss = self._back_propagation(batch[b], self.weights, self.biaises)
             accuracies.append(accuracy)
             losses.append(loss)
             self._gd_update_weights(self.config.batch_size)
@@ -365,12 +368,13 @@ class Network:
             sum(losses)/len(losses)
         )
 
-    def _stochatic_gd(self, dataset:List) -> Dict:
+    def _stochastic_gd(self, dataset:List) -> Dict:
         accuracies:List = []
         losses:List = []
 
+        # IL FAUT RAJOUTER LE STOCHATIC ICI 
         for d in dataset:
-            accuracy, loss = self._back_propagation([d], self._weights, self._biaises)
+            accuracy, loss = self._back_propagation([d], self.weights, self.biaises)
             accuracies.append(accuracy)
             losses.append(loss)
             self._gd_update_weights(1)
@@ -384,8 +388,8 @@ class Network:
     #
     def _gd_update_weights(self, batch_size:int):
         for i in range(len(self.config.shape) - 1):
-            self._weights[i] -= (self.config.learning_rate * (self._nabla_w[i] / batch_size))
-            self._biaises[i] -= (self.config.learning_rate * (self._nabla_b[i] / batch_size))
+            self.weights[i] -= (self.config.learning_rate * (self._nabla_w[i] / batch_size))
+            self.biaises[i] -= (self.config.learning_rate * (self._nabla_b[i] / batch_size))
 
 
     # ------------------------------------------------------
@@ -440,8 +444,8 @@ class Network:
     #
 
     def _nag_init_momentum(self):
-        self._momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self._weights]
-        self._momentum_b = [numpy.full(len(w), 0.) for w in self._weights]
+        self._momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.weights]
+        self._momentum_b = [numpy.full(len(w), 0.) for w in self.weights]
 
     def _nag_init_ahead(self):
         self._ahead_w = [[] for l in range(len(self.config.shape) - 1)]
@@ -449,16 +453,16 @@ class Network:
 
     def _nag_update_ahead(self):
         for i in range(len(self.config.shape) - 1):
-            self._ahead_w[i] = numpy.array(self._weights[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_w[i])
-            self._ahead_b[i] = numpy.array(self._biaises[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_b[i])
+            self._ahead_w[i] = numpy.array(self.weights[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_w[i])
+            self._ahead_b[i] = numpy.array(self.biaises[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_b[i])
 
     def _nag_update_weights(self, batch_size:int):
         for i in range(len(self.config.shape) - 1):
             self._momentum_w[i] = self.config.momentum_rate * self._momentum_w[i] + (self._nabla_w[i] / batch_size)
-            self._weights[i] = numpy.array(self._weights[i]) - (self.config.learning_rate * self._momentum_w[i])
+            self.weights[i] = numpy.array(self.weights[i]) - (self.config.learning_rate * self._momentum_w[i])
 
             self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (self._nabla_b[i] / batch_size) 
-            self._biaises[i] = numpy.array(self._biaises[i]) - (self.config.learning_rate * self._momentum_b[i])
+            self.biaises[i] = numpy.array(self.biaises[i]) - (self.config.learning_rate * self._momentum_b[i])
 
 
     # ------------------------------------------------------
@@ -466,7 +470,7 @@ class Network:
     # ------------------------------------------------------
     def _full_rms_prop(self, dataset:List):
         self._rms_init_velocity()
-        accuracy, loss = self._back_propagation(dataset, self._weights, self._biaises)
+        accuracy, loss = self._back_propagation(dataset, self.weights, self.biaises)
         self._rms_update_weights(len(dataset))
         return self._create_epoch_state(accuracy, loss)
 
@@ -477,7 +481,7 @@ class Network:
         self._rms_init_velocity()
         batch = self._prepare_batch(dataset)
         for b in range(len(batch)):
-            accuracy, loss = self._back_propagation(batch[b], self._weights, self._biaises)
+            accuracy, loss = self._back_propagation(batch[b], self.weights, self.biaises)
             accuracies.append(accuracy)
             losses.append(loss)
             self._rms_update_weights(self.config.batch_size)
@@ -492,7 +496,7 @@ class Network:
 
         self._rms_init_velocity()
         for d in dataset:
-            accuracy, loss = self._back_propagation([d], self._weights, self._biaises)
+            accuracy, loss = self._back_propagation([d], self.weights, self.biaises)
             accuracies.append(accuracy)
             losses.append(loss)
             self._rms_update_weights(1)
@@ -502,16 +506,16 @@ class Network:
     #
 
     def _rms_init_velocity(self):
-        self._velocity_w = [numpy.full((len(w),len(w[0])) , 0.0) for w in self._weights]
-        self._velocity_b = [numpy.full(len(w), 0.) for w in self._weights]
+        self._velocity_w = [numpy.full((len(w),len(w[0])) , 0.0) for w in self.weights]
+        self._velocity_b = [numpy.full(len(w), 0.) for w in self.weights]
 
     def _rms_update_weights(self, batch_size:int):
         for i in range(len(self.config.shape) - 1):
             self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate)*(numpy.power(self._nabla_w[i]/batch_size, 2))
-            self._weights[i] -= (self.config.learning_rate / (numpy.sqrt(self._velocity_w[i])+EPS)) * (self._nabla_w[i] / batch_size)
+            self.weights[i] -= (self.config.learning_rate / (numpy.sqrt(self._velocity_w[i])+EPS)) * (self._nabla_w[i] / batch_size)
 
             self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate)*(numpy.power(self._nabla_b[i]/batch_size, 2))
-            self._biaises[i] -= (self.config.learning_rate / (numpy.sqrt(self._velocity_b[i]) + EPS)) * (self._nabla_b[i] / batch_size)
+            self.biaises[i] -= (self.config.learning_rate / (numpy.sqrt(self._velocity_b[i]) + EPS)) * (self._nabla_b[i] / batch_size)
 
 
     # ------------------------------------------------------
@@ -570,11 +574,11 @@ class Network:
         for i in range(len(self.config.shape) - 1):
             self._momentum_w[i] = self.config.momentum_rate * self._momentum_w[i] + (1 - self.config.momentum_rate) * (self._nabla_w[i]/batch_size)
             self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate) * (numpy.power(self._nabla_w[i]/batch_size, 2))
-            self._weights[i] -= self._momentum_w[i]/(numpy.sqrt(self._velocity_w[i] + EPS)) * self.config.learning_rate
+            self.weights[i] -= self._momentum_w[i]/(numpy.sqrt(self._velocity_w[i] + EPS)) * self.config.learning_rate
 
             self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (1 - self.config.momentum_rate) * (self._nabla_b[i]/batch_size)
             self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate) * (numpy.power(self._nabla_b[i]/batch_size, 2))
-            self._biaises[i] -= self._momentum_b[i]/(numpy.sqrt(self._velocity_b[i] + EPS)) * self.config.learning_rate
+            self.biaises[i] -= self._momentum_b[i]/(numpy.sqrt(self._velocity_b[i] + EPS)) * self.config.learning_rate
 
 
     # ------------------------------------------------------
@@ -585,8 +589,8 @@ class Network:
         accuracies:List = []
         losses:List = []
         
-        self._nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self._weights]
-        self._nabla_b = [numpy.full(len(w), 0.) for w in self._weights]
+        self._nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.weights]
+        self._nabla_b = [numpy.full(len(w), 0.) for w in self.weights]
         for d in dataset:
             dn_w = []
             dn_b = []
@@ -651,16 +655,16 @@ class Network:
         print()
         print("--LAYERS--")
         print(" -weights:")
-        print(self._weights)
+        print(self.weights)
         print(" -biaises:")
-        print(self._biaises)
+        print(self.biaises)
         return
     
-    def _fire(self, input:numpy.array) -> numpy.array:
+    def fire(self, input:numpy.array) -> numpy.array:
         act_input = input
         for l in range(len(self.config.shape) - 2):
-            act_input = numpy.array(self._act_obj.activation(self._fire_layer(self._weights[l], self._biaises[l], act_input)))
-        act_input = numpy.array(self._output_act_obj.activation(self._fire_layer(self._weights[-1], self._biaises[-1], act_input)))
+            act_input = numpy.array(self._act_obj.activation(self._fire_layer(self.weights[l], self.biaises[l], act_input)))
+        act_input = numpy.array(self._output_act_obj.activation(self._fire_layer(self.weights[-1], self.biaises[-1], act_input)))
         return act_input
     
     def _save_training(
@@ -722,7 +726,7 @@ class Network:
             "shape": self.config.shape,
             "activation": self.config.activation_name,
             "output activation": self.config.output_activation_name,
-            "weight": self._weights,
-            "biaises": self._biaises
+            "weight": self.weights,
+            "biaises": self.biaises
         }    
     
