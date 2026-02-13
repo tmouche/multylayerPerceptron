@@ -88,23 +88,23 @@ class Network:
     batch_size: int
 
     learning_rate: FloatT
-    momentum_rate: FloatT = 0.9
-    velocity_rate: FloatT = 0.9
+    # momentum_rate: FloatT = 0.9
+    # velocity_rate: FloatT = 0.9
 
     weights: npt.ArrayLike[npt.ArrayLike[ArrayF]]
     biaises: npt.ArrayLike[ArrayF]
 
-    _nabla_w:Sequence = None
-    _nabla_b:Sequence = None
+    # _nabla_w:Sequence = None
+    # _nabla_b:Sequence = None
 
-    _momentum_w:Sequence = None
-    _momentum_b:Sequence = None
+    # _momentum_w:Sequence = None
+    # _momentum_b:Sequence = None
 
-    _ahead_w:Sequence = None
-    _ahead_b:Sequence = None
+    # _ahead_w:Sequence = None
+    # _ahead_b:Sequence = None
 
-    _velocity_w:Sequence = None
-    _velocity_b:Sequence = None
+    # _velocity_w:Sequence = None
+    # _velocity_b:Sequence = None
 
     # ======================================================
     # --- 2. INITIALIZATION ---
@@ -130,7 +130,7 @@ class Network:
     #     self._is_apply = True
 
 
-    def __init__(self, layers :List[Layer]):
+    def __init__(self, layers: List[Layer]):
         
         for a in layers:
             if isinstance(a, Layer) == False:

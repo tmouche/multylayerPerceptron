@@ -55,15 +55,15 @@ class Model:
         self.losses = list()
 
         
-    @staticmethod
     def fit(
+        self,
         network: Network,
+        optimizer: Callable,
         ds_train: List[Dict[str, ArrayF]],
         ds_test: List[Dict[str, ArrayF]],
         loss: str,
         learning_rate: FloatT,
         epochs: int,
-        optimizer,
         batch_size: int = 1,
         early_stoper: FloatT = 0.,
         print_training_state: bool = True,
@@ -71,13 +71,6 @@ class Model:
     ) -> Tuple[Dict[str, List[FloatT]], Dict[str, List[FloatT]]]:
         accuracies: Dict[str, List[FloatT]] = dict(testing=list(), training=list())
         losses: Dict[str, List[FloatT]] = dict(testing=list(), training=list())
-
-        try:
-            optimizer_fnc: Callable = Model.get_optimizer(optimizer, network)
-  
-            loss_fnc: Callable = Model.get_loss(loss)
-        except ModelException as modErr:
-            raise ModelException(modErr)
 
         Model.load_layers(network, loss)
         
@@ -88,7 +81,7 @@ class Model:
         start_time: FloatT = perf_counter()
         for i_epoch in range(epochs):
             try:
-                training: Dict[str, FloatT] = optimizer_fnc(ds_train)
+                training: Dict[str, FloatT] = optimizer(ds_train)
                 testing: Dict[str, FloatT] = binary_classification(network, loss_fnc, ds_test, )
 
                 accuracies.get('testing').append(testing.get("accuracy"))

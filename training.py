@@ -1,3 +1,11 @@
+from core.layer import Layer
+from core.model import Model
+from core.network import Network
+from ml_tools.fire import Fire
+from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient
+from ml_tools.activations import Sigmoid
+
+
 from core.network import Network, NetworkConfig
 from ml_tools.evaluations import classification
 from typing import List, Dict, Sequence
@@ -186,6 +194,21 @@ def main():
     
     df_train, df_test = create_normalized_data(training_path=train_file, testing_path=test_file)
     l_train, l_test = process_df_2_output(df_train=df_train, df_test=df_test)
+
+    net: Network = Model.create_network([
+        [
+            Layer(shape=9),
+            Layer(shape=16, activation=Sigmoid),
+            Layer(shape=2, activation=Sigmoid)
+        ]
+    ])
+
+    opti: Optimizer = Nesterov_Accelerated_Gradient(Fire(net.layers), net, momentum_rate=0.9)
+
+    
+
+
+
     EPOCH = 350
     try:
         myNet = Network(NetworkConfig(

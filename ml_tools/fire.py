@@ -12,8 +12,7 @@ logger = Logger()
 
 class Fire:
 
-    accuracies: List[FloatT]
-    losses: List[FloatT]
+    accuracies: List[Activation]
     
     layers: List[Layer]
 
@@ -56,7 +55,7 @@ class Fire:
         e_losses: List[FloatT] = list()
 
         for d in dataset:
-            out: npt.ArrayLike[ArrayF] = self._forward_pass(d["data"], weights, biaises)
+            out: npt.ArrayLike[ArrayF] = self.forward(d["data"], weights, biaises)
             e_losses.append(self.layers[-1].activation.loss(out[-1], d["label"]))
             e_accuracies.append(1 if step(out[-1], 0.5) == d["label"] else 0)
             delta: ArrayF = self.layers[-1].activation.delta(out[-1], d["label"])

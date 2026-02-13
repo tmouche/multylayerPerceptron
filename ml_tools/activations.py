@@ -35,7 +35,7 @@ class Activation(ABC):
 
 
 
-class sigmoid(Activation):
+class Sigmoid(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 
@@ -74,7 +74,7 @@ class sigmoid(Activation):
         return loss
 
 
-class tanh(Activation):
+class Tanh(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 
@@ -102,7 +102,7 @@ class tanh(Activation):
     
 
 
-class relu(Activation):
+class ReLu(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 
@@ -130,7 +130,7 @@ class relu(Activation):
 
 
 
-class leaky_relu(Activation):
+class Leaky_ReLu(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 
@@ -161,7 +161,7 @@ class leaky_relu(Activation):
         return loss
 
 
-class softmax(Activation):
+class Softmax(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 

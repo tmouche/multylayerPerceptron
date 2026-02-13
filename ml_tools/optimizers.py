@@ -161,79 +161,11 @@ class Nesterov_Accelerated_Gradient(Optimizer):
         self.momentum_w = self.__r_momentum_w.copy()
         self.momentum_b = self.__r_momentum_b.copy()
 
-    def __update(self, batch_size: int):
+    def _update(self, batch_size: int):
         for i in range(len(self.net.weights)):
+            self.momentum_w[i] = self.momentum_rate * self.momentum_w[i] + (self.fire.nabla_w[i] / batch_size)
+            self.net.weights[i] = self.net.weights[i] - (self.config.learning_rate * self.momentum_w[i])
+            self._momentum_b[i] = self.config.momentum_rate * self.momentum_b[i] + (self.fire.nabla_b[i] / batch_size) 
+            self.net.biaises[i] = self.net.biaises[i] - (self.net.learning_rate * self.momentum_b[i])
             self.ahead_w[i] = self.net.weights[i] - (self.momentum_rate * self.net.learning_rate * self.momentum_w[i])
             self.ahead_b[i] = self.net.biaises[i] - (self.momentum_rate * self.net.learning_rate * self.momentum_b[i])
-            self.momentum_w[i] = self.momentum_rate * self.momentum_w[i] + (self.fire.nabla_w[i] / batch_size)
-            self.net.weights[i] = self.weights[i] - (self.config.learning_rate * self._momentum_w[i])
-            self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (self._nabla_b[i] / batch_size) 
-            self.biaises[i] = numpy.array(self.biaises[i]) - (self.config.learning_rate * self._momentum_b[i])
-
-    def _full_nag(self, dataset:List):
-        self._nag_init_momentum()
-        self._nag_init_ahead()
-        self._update_ahead()
-        accuracy, loss = self._back_propagation(dataset, self._ahead_w, self._ahead_b)
-        self._nag_update_weights(len(dataset))
-        return self._create_epoch_state(accuracy, loss)
-    
-    def _mini_nag(self, dataset:List):
-        accuracies:List = []
-        losses:List = []
-
-        self._nag_init_momentum()
-        self._nag_init_ahead()
-        batch = self._prepare_batch(dataset)
-        for b in range(len(batch)):
-            self._nag_update_ahead()
-            accuracy, loss = self._back_propagation(batch[b], self._ahead_w, self._ahead_b)
-            accuracies.append(accuracy)
-            losses.append(loss)
-            self._nag_update_weights(self.config.batch_size)
-        return self._create_epoch_state(
-            sum(accuracies)/len(accuracies),
-            sum(losses)/len(losses)
-        )
-
-    def _stochatic_nag(self, dataset:List):
-        accuracies:List = []
-        losses:List = []
-        
-        self._nag_init_momentum()
-        self._nag_init_ahead()
-        for d in dataset:
-            self.__nag_update_ahead()
-            accuracy, loss = self._back_propagation([d], self._ahead_w, self._ahead_b)
-            accuracies.append(accuracy)
-            losses.append(loss)
-            self._nag_update_weights(1)
-        return self._create_epoch_state(
-            sum(accuracies)/len(accuracies),
-            sum(losses)/len(losses)
-        )
-
-    #
-    # --- 3.2.X GRADIENT ACCELERATED UTILS ---
-    #
-
-    def _nag_init_momentum(self):
-        self._momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.weights]
-        self._momentum_b = [numpy.full(len(w), 0.) for w in self.weights]
-
-    def _nag_init_ahead(self):
-        self._ahead_w = [[] for l in range(len(self.config.shape) - 1)]
-        self._ahead_b = [[] for l in range(len(self.config.shape) - 1)]
-
-    def _nag_update_ahead(self):
-        for i in range(len(self.config.shape) - 1):
-            self._ahead_w[i] = numpy.array(self.weights[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_w[i])
-            self._ahead_b[i] = numpy.array(self.biaises[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_b[i])
-
-    def _nag_update_weights(self, batch_size:int):
-        for i in range(len(self.config.shape) - 1):
-            self._momentum_w[i] = self.config.momentum_rate * self._momentum_w[i] + (self._nabla_w[i] / batch_size)
-            self.weights[i] = numpy.array(self.weights[i]) - (self.config.learning_rate * self._momentum_w[i])
-
-            self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (self._nabla_b[i] / batch_size) 
-            self.biaises[i] = numpy.array(self.biaises[i]) - (self.config.learning_rate * self._momentum_b[i])
