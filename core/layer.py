@@ -91,8 +91,6 @@ class Layer:
         Raises:
             LayerActivationShape: If the activation imposes a shape restriction
                                   that is not satisfied by `self.shape`.
-            LayerActivation: If the specified activation name does not exist
-                             in the `Activation` class.
 
         Logs:
             - Error if the activation shape restriction is violated.

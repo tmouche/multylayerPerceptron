@@ -28,7 +28,8 @@ import inspect
 import ml_tools.initialisations as Initialisations
 import ml_tools.activations as Activations
 import ml_tools.losses as Losses
-import numpy
+import numpy as np
+import numpy.typing as npt
 import time
 import json
 
@@ -90,8 +91,8 @@ class Network:
     momentum_rate: FloatT = 0.9
     velocity_rate: FloatT = 0.9
 
-    weights:numpy.array
-    biaises:numpy.array
+    weights: npt.ArrayLike[npt.ArrayLike[ArrayF]]
+    biaises: npt.ArrayLike[ArrayF]
 
     _nabla_w:Sequence = None
     _nabla_b:Sequence = None
@@ -159,7 +160,6 @@ class Network:
         if self.config.epoch is None or self.config.epoch <= 0:
             logger.error("The number of epoch cannot be negative or egal to 0")
             raise Exception()
-        logger.info("Mandatories OK..")
         
     def _check_optimisation(self):
         opti_name = '_' + '_'.join(str.lower(self.config.optimisation_name).split())
@@ -270,8 +270,9 @@ class Network:
             - Error if the network does not contain enough layers.
             - Error if activation or initializer is missing for a layer.
         """
-        self.weights = numpy.array([])
-        self.biaises = numpy.array([])
+        self.weights = np.ndarray(0)
+        self.biaises = np.ndarray(0)
+
 
         if len(self.layers) < 3:
             logger.error(f"Not enough layers")
@@ -281,14 +282,14 @@ class Network:
             previous_size: int = self.layers[i-1]
             size: int = self.layers[i]
 
-            if not self.layers[i].initializer:
+            if not self.layers[i].activation:
                 logger.error(f"Missing Activation in layer n*{i+1}")
                 raise LayerActivation(context="Missing")
-            if not self.layers[i].activation:
+            if not self.layers[i].initializer:
                 logger.error(f"Missing Initializer in layer n*{i+1}")
                 raise LayerInitializer(context="Missing")
-            self.weights = numpy.append(self.weights, self.layers[i].initializer(shape=(size, previous_size)))
-            self.biaises = numpy.append(self.biaises, self.layers[i].initializer(shape=(size)))
+            self.weights = np.append(self.weights, self.layers[i].initializer(shape=(size, previous_size)))
+            self.biaises = np.append(self.biaises, self.layers[i].initializer(shape=(size)))
 
             
     

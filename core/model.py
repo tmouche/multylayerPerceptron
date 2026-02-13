@@ -1,6 +1,7 @@
 from core.layer import Layer
 from core.network import Network
 from ml_tools.evaluations import binary_classification
+from ml_tools.optimizers import Optimizer
 from multipledispatch import dispatch
 from time import perf_counter
 from typing import Callable, Dict, List, Tuple
@@ -62,9 +63,9 @@ class Model:
         loss: str,
         learning_rate: FloatT,
         epochs: int,
+        optimizer,
         batch_size: int = 1,
         early_stoper: FloatT = 0.,
-        optimizer: str = "stochastic_gd",
         print_training_state: bool = True,
         history_save: bool = False,
     ) -> Tuple[Dict[str, List[FloatT]], Dict[str, List[FloatT]]]:
@@ -73,6 +74,7 @@ class Model:
 
         try:
             optimizer_fnc: Callable = Model.get_optimizer(optimizer, network)
+  
             loss_fnc: Callable = Model.get_loss(loss)
         except ModelException as modErr:
             raise ModelException(modErr)

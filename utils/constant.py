@@ -1,5 +1,5 @@
 from typing import List
-
+from utils.types import FloatT
 
 
 COLUMNS: List[str] = ["ID", "Diagnosis", 
@@ -26,3 +26,4 @@ SPLIT_DATASET: int = 90
 ACTIVATION_RESTRICT_SHAPE = {
     "softmax": 2
 }
+

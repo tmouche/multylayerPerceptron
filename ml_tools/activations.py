@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from utils.logger import Logger
 logger = Logger()
 
-class __Activation(ABC):
+class Activation(ABC):
 
     delta = None
     loss = None
@@ -35,7 +35,7 @@ class __Activation(ABC):
 
 
 
-class sigmoid(__Activation):
+class sigmoid(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 
@@ -74,7 +74,7 @@ class sigmoid(__Activation):
         return loss
 
 
-class tanh(__Activation):
+class tanh(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 
@@ -102,7 +102,7 @@ class tanh(__Activation):
     
 
 
-class relu(__Activation):
+class relu(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 
@@ -130,7 +130,7 @@ class relu(__Activation):
 
 
 
-class leaky_relu(__Activation):
+class leaky_relu(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 
@@ -161,7 +161,7 @@ class leaky_relu(__Activation):
         return loss
 
 
-class softmax(__Activation):
+class softmax(Activation):
     def __init__(self, loss_function_name:str):
         super().__init__(self.__class__.__qualname__, loss_function_name)
 

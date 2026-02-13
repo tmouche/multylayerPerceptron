@@ -31,9 +31,6 @@
 # tt.test_fonction()
 # not_in()
 
-
-# logger("hihi")
-
-import numpy
-
-list: numpy.array[float] = numpy.array([1.2, 1.2])
+mother = [0,0,0]
+if not mother:
+    print(mother)
