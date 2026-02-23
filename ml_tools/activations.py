@@ -33,6 +33,39 @@ class Activation(ABC):
     def prime(y):
         pass
 
+class Nothing(Activation):
+    def __init__(self, loss_function_name: str):
+        super().__init__(self.__class__.__qualname__, loss_function_name)
+
+    @staticmethod
+    def activation(z):
+        return z
+
+    @staticmethod
+    def prime(y):
+        return y
+    
+    def _mean_square_error_grad(self, y, e):
+        loss = np.array(y) - np.array(e)
+        prime = self.prime(y)
+        return loss * prime
+    
+    def _mean_absolute_error_grad(self, y, e):
+        loss = abs(np.array(y) - np.array(e))
+        prime = self.prime(y)
+        return loss * prime
+    
+    def _binary_cross_entropy_grad(self, y, e):
+        loss = np.array(y) - np.array(e)
+        return loss
+    
+    def _categorical_cross_entropy_grad(self, y, e):
+        loss = np.array(y) - np.array(e)
+        return loss
+
+    def _spare_cross_entropy_grad(self, y, e):
+        loss = np.array(y) - np.array(e)
+        return loss
 
 
 class Sigmoid(Activation):

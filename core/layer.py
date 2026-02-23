@@ -7,7 +7,11 @@ from utils.exception import (
     LayerShape,
     UnexpectedException,
 )
-from utils.constant import ACTIVATION_RESTRICT_SHAPE
+from utils.constant import (
+    ACTIVATION_RESTRICT_SHAPE,
+    ACTIVATION_DEFAULT,
+    INITIALIZATION_DEFAULT
+)
 from utils.logger import Logger
 
 import ml_tools.initialisations as Initializer
@@ -24,7 +28,7 @@ class Layer:
     weights_initiatilizer: str
     initializer: Callable
 
-    def __init__(self, shape: int, activation: str | None = None, initializer: str | None = None):
+    def __init__(self, shape: int, activation: str | None = None,  initializer: Callable | None = None):
         """
         Initialize a layer configuration.
 
@@ -60,8 +64,7 @@ class Layer:
             self.output_activation = activation
             self.__init__activation()
 
-            self.weights_initiatilizer = initializer
-            self.__init_initializer()
+            self.initializer = initializer
         except LayerInit as iniErr:
             raise LayerException(context=str(iniErr))
         except Exception as e:
@@ -96,33 +99,12 @@ class Layer:
             - Error if the activation shape restriction is violated.
             - Error if the activation name is unknown.
 
-        If `self.output_activation` is None or empty, `self.activation` is set to None.
         """
         if self.output_activation:
             if restrict := ACTIVATION_RESTRICT_SHAPE.get(self.output_activation):
                 if restrict < self.shape:
                     logger.error(f"Activation {self.output_activation} restrict violated with shape {self.shape}")
-                    raise LayerActivation("Shape")
-        else:
-            self.activation = None
+                    raise LayerActivation(context="Shape")
+        self.activation = None
 
-
-    def __init_initializer(self):
-        """
-        Initialize the weights initializer for the layer.
-
-        Raises:
-            LayerInit: If the specified initializer name does not exist in `Initializer`.
-        Logs:
-            - Error if the initializer name is unknown.
-
-        If `self.weights_initiatilizer` is None or empty, `self._initializer` is set to None.
-        """
-        if self.weights_initiatilizer:
-            try:
-                self.initializer = getattr(Initializer, self.weights_initiatilizer)
-            except AttributeError:
-                logger.error(f"Unknow initializer: {self.weights_initiatilizer}")
-                raise LayerInitializer("Unknow")
-        else:
-            self.initializer = None 
+        

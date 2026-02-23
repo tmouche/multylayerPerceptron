@@ -27,3 +27,8 @@ ACTIVATION_RESTRICT_SHAPE = {
     "softmax": 2
 }
 
+ACTIVATION_DEFAULT = "Nothing"
+INITIALIZATION_DEFAULT = "nothing"
+
+POSITIV = [1, 0]
+

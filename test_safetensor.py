@@ -31,6 +31,11 @@
 # tt.test_fonction()
 # not_in()
 
-mother = [0,0,0]
-if not mother:
-    print(mother)
+import numpy
+
+test1 = [1.,2.]
+test2 = [1,2]
+
+if test1 == test2:
+    print("same")
+

@@ -5,6 +5,7 @@ from ml_tools.optimizers import Optimizer
 from multipledispatch import dispatch
 from time import perf_counter
 from typing import Callable, Dict, List, Tuple
+from utils.constant import POSITIV
 from utils.exception import (
     LayerActivation,
     ModelActivation,
@@ -29,42 +30,46 @@ class Model:
     accuracies: List[Dict[str, List[FloatT]]]
     losses: List[Dict[str, List[FloatT]]]
 
-
-    @dispatch(List[Layer])
-    @staticmethod
-    def create_network(layers: List[Layer]) -> Network:
-        
-        try:
-            new_net: Network = Network(layers=layers)
-        except NetworkException as netErr:
-            logger.error(netErr)
-            raise ModelNetCreate(netErr)
-
-        return new_net
-
-
-    @dispatch(str)
-    @staticmethod
-    def create_network(path_to_init: str) -> Network:
-        pass
-    
+    network: Network
 
     def __init__(self):
         
         self.accuracies = list()
         self.losses = list()
 
+        self.network = None
+
+
+    def create_network(
+        self,
+        layers: List[Layer],
+        learning_rate: FloatT,
+        batch_size: int
+    ):
+        
+        try:
+            new_net: Network = Network(
+                layers=layers,
+                learning_rate=learning_rate,
+                batch_size=batch_size
+            )
+        except NetworkException as netErr:
+            logger.error(netErr)
+            raise ModelNetCreate(netErr)
+        self.network = new_net
+
+
+    def load_network(self, path_to_init: str) -> Network:
+        pass
+
         
     def fit(
         self,
-        network: Network,
         optimizer: Callable,
         ds_train: List[Dict[str, ArrayF]],
         ds_test: List[Dict[str, ArrayF]],
         loss: str,
-        learning_rate: FloatT,
         epochs: int,
-        batch_size: int = 1,
         early_stoper: FloatT = 0.,
         print_training_state: bool = True,
         history_save: bool = False,
@@ -72,17 +77,14 @@ class Model:
         accuracies: Dict[str, List[FloatT]] = dict(testing=list(), training=list())
         losses: Dict[str, List[FloatT]] = dict(testing=list(), training=list())
 
-        Model.load_layers(network, loss)
+        self.load_layers(loss)
         
-        network.learning_rate = learning_rate
-        network.batch_size = batch_size
-
         logger.info("Starting training...")
         start_time: FloatT = perf_counter()
         for i_epoch in range(epochs):
             try:
                 training: Dict[str, FloatT] = optimizer(ds_train)
-                testing: Dict[str, FloatT] = binary_classification(network, loss_fnc, ds_test, )
+                testing: Dict[str, FloatT] = binary_classification(self.fire, self.network.layers[-1].activation.loss, ds_test, POSITIV)
 
                 accuracies.get('testing').append(testing.get("accuracy"))
                 accuracies.get('training').append(training.get("accuracy"))
@@ -109,12 +111,12 @@ class Model:
         if history_save:
             save_to_history(
                 optimizer=optimizer,
-                activation_function=network.layers[-1].output_activation,
+                activation_function=self.network.layers[-1].output_activation,
                 loss_function=loss,
                 epoch=epochs,
-                learning_rate=learning_rate,
-                network_shape=[network.layers[i].shape for i in range(len(network.layers))],
-                batch_size=batch_size,
+                learning_rate=self.network.learning_rate,
+                network_shape=[self.network.layers[i].shape for i in range(len(self.network.layers))],
+                batch_size=self.network.batch_size,
                 min_training_loss=min(losses.get('training')),
                 min_testing_loss=min(losses.get('testing')),
                 accuracy=testing.get('accuracy'),
@@ -124,20 +126,7 @@ class Model:
                 time=time_stamp
             )
         return accuracies, losses
-
-
-    @staticmethod
-    def get_optimizer(func_name: str, network: Network) -> Callable:
-        try:
-            return getattr(network, func_name)
-        except AttributeError as attrErr:
-            logger.error(f"Optimizer {func_name} not found")
-            raise ModelOptimizer(attrErr)
-        except Exception as e:
-            logger.error(f"Unexpected exception: {e}")
-            raise UnexpectedException()
         
-    @staticmethod
     def get_loss(func_name: str) -> Callable:
         try:
             return getattr(Loss, func_name)
@@ -148,15 +137,14 @@ class Model:
             logger.error(f"Unexpected exception: {e}")
             raise UnexpectedException()
 
-    @staticmethod
-    def load_layer(network: Network, loss: str):
+    def load_layers(self, loss: str):
         
-        for layer in network.layers:
+        for i in range(1, len(self.network.layers)):
             try:
-                    layer.activation = getattr(Activation, layer.output_activation)(loss)
+                self.network.layers[i].activation = getattr(Activation, self.network.layers[i].output_activation)(loss)
             except AttributeError:
-                logger.error(f"Activation {layer.output_activation} not found")
-                raise ModelActivation(layer.output_activation)
+                logger.error(f"Activation {self.network.layers[i].output_activation} not found")
+                raise ModelActivation(self.network.layers[i].output_activation)
             except Exception as e:
                 logger.error(f"Unexpected exception: {e}")
                 raise UnexpectedException()

@@ -17,7 +17,7 @@ EPS: FloatT = 1e-8
 
 class Optimizer(ABC):
 
-    in_use_weights: List[npt.ArrayLike[ArrayF]]
+    in_use_weights: List[npt.NDArray[ArrayF]]
     in_use_biaises: List[ArrayF]
 
     fire: Fire
@@ -60,8 +60,8 @@ class Optimizer(ABC):
         self._learn(batch, self.net.batch_size)
 
     def _learn(self, batch: List[List[Dict[str, ArrayF]]], batch_size: int):
-        for b in range(len(batch)):
-            self.fire.backward(list(b) if self.net.batch_size == 1 else b, self.in_use_weights, self.in_use_biaises)
+        for i in range(len(batch)):
+            self.fire.backward(list(batch[i]) if self.net.batch_size == 1 else batch[i], self.in_use_weights, self.in_use_biaises)
             self._update(batch_size)
             self.fire._reset()
     
@@ -96,10 +96,10 @@ class RMS_Propagation(Optimizer):
 
     velocity_rate: FloatT
 
-    velocity_w: List[npt.ArrayLike[ArrayF]]
+    velocity_w: List[npt.NDArray[ArrayF]]
     velocity_b: List[ArrayF]
 
-    __r_velocity_w: List[npt.ArrayLike[ArrayF]]
+    __r_velocity_w: List[npt.NDArray[ArrayF]]
     __r_velocity_b: List[ArrayF]
 
     def __init__(
@@ -131,13 +131,13 @@ class Nesterov_Accelerated_Gradient(Optimizer):
 
     momentum_rate: FloatT
 
-    momentum_w: List[npt.ArrayLike[ArrayF]]
+    momentum_w: List[npt.NDArray[ArrayF]]
     momentum_b: List[ArrayF]
 
-    ahead_w: List[npt.ArrayLike[ArrayF]]
+    ahead_w: List[npt.NDArray[ArrayF]]
     ahead_b: List[ArrayF]
 
-    __r_momentum_w: List[npt.ArrayLike[ArrayF]]
+    __r_momentum_w: List[npt.NDArray[ArrayF]]
     __r_momentum_b: List[ArrayF]
 
 
@@ -164,8 +164,8 @@ class Nesterov_Accelerated_Gradient(Optimizer):
     def _update(self, batch_size: int):
         for i in range(len(self.net.weights)):
             self.momentum_w[i] = self.momentum_rate * self.momentum_w[i] + (self.fire.nabla_w[i] / batch_size)
-            self.net.weights[i] = self.net.weights[i] - (self.config.learning_rate * self.momentum_w[i])
-            self._momentum_b[i] = self.config.momentum_rate * self.momentum_b[i] + (self.fire.nabla_b[i] / batch_size) 
+            self.net.weights[i] = self.net.weights[i] - (self.net.learning_rate * self.momentum_w[i])
+            self.momentum_b[i] = self.momentum_rate * self.momentum_b[i] + (self.fire.nabla_b[i] / batch_size) 
             self.net.biaises[i] = self.net.biaises[i] - (self.net.learning_rate * self.momentum_b[i])
             self.ahead_w[i] = self.net.weights[i] - (self.momentum_rate * self.net.learning_rate * self.momentum_w[i])
             self.ahead_b[i] = self.net.biaises[i] - (self.momentum_rate * self.net.learning_rate * self.momentum_b[i])

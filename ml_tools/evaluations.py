@@ -1,5 +1,5 @@
 
-from core.network import Network
+from ml_tools.fire import Fire
 from ml_tools.utils import (
     step,
     accuracy,
@@ -17,10 +17,8 @@ from utils.types import ArrayF, FloatT
 
 logger = Logger()
 
-POSITIV = [1, 0]
-
 def binary_classification(
-    net: Network,
+    fire: Fire,
     loss_fnc: Callable,
     ds_test: List[Dict[str, ArrayF]],
     positiv: List[int]
@@ -29,7 +27,7 @@ def binary_classification(
     tp = tn = fp = fn = 0
 
     for t in ds_test:
-        output: ArrayF = net.fire(t.get("data"))
+        output: ArrayF = fire.full(t.get("data"))
         label: ArrayF = t.get("label")
         if step(output, 0.5) == positiv:
             if label == positiv:

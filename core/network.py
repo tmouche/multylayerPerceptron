@@ -1,7 +1,7 @@
 from core.layer import Layer
 from dataclasses import dataclass
 from ml_tools.utils import step
-from ml_tools.activations import __Activation
+from ml_tools.activations import Activation
 from typing import (
     Callable,
     Dict,
@@ -12,12 +12,14 @@ from typing import (
 from utils.decorator import call_decorator
 from utils.exception import (
     Format,
-    NetworkException,
-    NetworkInit,
-    NetworkLayerCount,
     LayerActivation,
     LayerInit,
     LayerInitializer,
+    NetworkBatchSize,
+    NetworkException,
+    NetworkInit,
+    NetworkLayerCount,
+    NetworkLearningRate,
     UnexpectedException
 )
 from utils.history import save_to_history
@@ -91,8 +93,8 @@ class Network:
     # momentum_rate: FloatT = 0.9
     # velocity_rate: FloatT = 0.9
 
-    weights: npt.ArrayLike[npt.ArrayLike[ArrayF]]
-    biaises: npt.ArrayLike[ArrayF]
+    weights: npt.NDArray[npt.NDArray[ArrayF]]
+    biaises: npt.NDArray[ArrayF]
 
     # _nabla_w:Sequence = None
     # _nabla_b:Sequence = None
@@ -130,13 +132,29 @@ class Network:
     #     self._is_apply = True
 
 
-    def __init__(self, layers: List[Layer]):
+    def __init__(
+            self,
+            layers: List[Layer],
+            learning_rate: FloatT,
+            batch_size: int
+        ):
         
-        for a in layers:
-            if isinstance(a, Layer) == False:
-                logger.error(f"Unrecognized argument passed: {a}")
+        if learning_rate is None or learning_rate <= 0.:
+            logger.error(f"Learning rate: {learning_rate}")
+            raise NetworkLearningRate()
+        self.learning_rate = learning_rate
+
+        if batch_size is None or batch_size <= 0.:
+            logger.error(f"Batch size: {batch_size}")
+            raise NetworkBatchSize()
+        self.batch_size = batch_size
+
+        self.layers = list()
+        for l in layers:
+            if isinstance(l, Layer) == False:
+                logger.error(f"Unrecognized argument passed: {l}")
                 raise Format(context="Layer")
-            self.layers.append(a)
+            self.layers.append(l)
 
         try:
             self.__init_layers()
@@ -153,69 +171,69 @@ class Network:
     # --- 2.1 CONFIGURATION INITIALISATION ---
     # ------------------------------------------------------
 
-    def _check_mandatories(self):
-        if self.config.learning_rate is None or self.config.learning_rate <= 0:
-            logger.error("Learning rate cannot be negative or egal to 0")
-            raise Exception()
-        if self.config.epoch is None or self.config.epoch <= 0:
-            logger.error("The number of epoch cannot be negative or egal to 0")
-            raise Exception()
+    # def _check_mandatories(self):
+    #     if self.config.learning_rate is None or self.config.learning_rate <= 0:
+    #         logger.error("Learning rate cannot be negative or egal to 0")
+    #         raise Exception()
+    #     if self.config.epoch is None or self.config.epoch <= 0:
+    #         logger.error("The number of epoch cannot be negative or egal to 0")
+    #         raise Exception()
         
-    def _check_optimisation(self):
-        opti_name = '_' + '_'.join(str.lower(self.config.optimisation_name).split())
-        try:
-            self._opti_fnc = getattr(self, opti_name)
-        except AttributeError as e:
-            logger.error(f"Optimisation function {self.config.optimisation_name} is unknown")
-            raise e
+    # def _check_optimisation(self):
+    #     opti_name = '_' + '_'.join(str.lower(self.config.optimisation_name).split())
+    #     try:
+    #         self._opti_fnc = getattr(self, opti_name)
+    #     except AttributeError as e:
+    #         logger.error(f"Optimisation function {self.config.optimisation_name} is unknown")
+    #         raise e
         
-        if self.config.batch_size is None:
-            if "mini" in self._opti_name:
-                logger.error(f"Missing batch size for {self.config.optimisation_name}")
-                raise Exception()
-        else:
-            if self.config.batch_size <= 0:
-                logger.error(f"{self.config.batch_size} not a valid value for batch size")
-                raise Exception()
+    #     if self.config.batch_size is None:
+    #         if "mini" in self._opti_name:
+    #             logger.error(f"Missing batch size for {self.config.optimisation_name}")
+    #             raise Exception()
+    #     else:
+    #         if self.config.batch_size <= 0:
+    #             logger.error(f"{self.config.batch_size} not a valid value for batch size")
+    #             raise Exception()
         
-        if self.config.momentum_rate is None or self.config.momentum_rate <= 0.:
-            if "adam" or "nag" in self.config.optimisation_name:
-                logger.error(f"{self.config.momentum_rate} is not a valid value for momentum rate")
-                raise Exception()
-        if self.config.velocity_rate is None or self.config.velocity_rate <= 0.:
-            if "adam" or "rms" in self.config.optimisation_name:
-                logger.error(f"{self.config.velocity_rate} is not a valid value for velocity rate")
-                raise Exception()
+    #     if self.config.momentum_rate is None or self.config.momentum_rate <= 0.:
+    #         if "adam" or "nag" in self.config.optimisation_name:
+    #             logger.error(f"{self.config.momentum_rate} is not a valid value for momentum rate")
+    #             raise Exception()
+    #     if self.config.velocity_rate is None or self.config.velocity_rate <= 0.:
+    #         if "adam" or "rms" in self.config.optimisation_name:
+    #             logger.error(f"{self.config.velocity_rate} is not a valid value for velocity rate")
+    #             raise Exception()
     
-    def _check_activation(self):
-        loss_name = '_'.join(str.lower(self.config.loss_name).split())
-        act_name = '_'.join(str.lower(self.config.activation_name).split())
-        act_output_name = '_'.join(str.lower(self.config.output_activation_name).split())
-        if act_name == "softmax":
-            logger.error("Softmax can not be used as activation for hidden layers")
-            raise Exception()
-        try:
-            self._loss_fnc = getattr(Losses, loss_name)
-        except AttributeError:
-            logger.error(f"Activation function {act_name} unknown")
-            raise Exception()
-        try:
-            self._act_obj = getattr(Activations, act_name)(loss_name)
-        except AttributeError:
-            logger.error(f"Activation function {act_name} unknown")
-            raise Exception()
-        try:
-            self._output_act_obj = getattr(Activations, act_output_name)(loss_name)
-        except AttributeError:
-            logger.error(f"Activation function {act_output_name} unknown")
-            raise Exception()
+    # def _check_activation(self):
+    #     loss_name = '_'.join(str.lower(self.config.loss_name).split())
+    #     act_name = '_'.join(str.lower(self.config.activation_name).split())
+    #     act_output_name = '_'.join(str.lower(self.config.output_activation_name).split())
+    #     if act_name == "softmax":
+    #         logger.error("Softmax can not be used as activation for hidden layers")
+    #         raise Exception()
+    #     try:
+    #         self._loss_fnc = getattr(Losses, loss_name)
+    #     except AttributeError:
+    #         logger.error(f"Activation function {act_name} unknown")
+    #         raise Exception()
+    #     try:
+    #         self._act_obj = getattr(Activations, act_name)(loss_name)
+    #     except AttributeError:
+    #         logger.error(f"Activation function {act_name} unknown")
+    #         raise Exception()
+    #     try:
+    #         self._output_act_obj = getattr(Activations, act_output_name)(loss_name)
+    #     except AttributeError:
+    #         logger.error(f"Activation function {act_output_name} unknown")
+    #         raise Exception()
         
-    def _init_initialisation(self):
-        init_name = '_'.join(str.lower(self.config.initialisation_name).split())
-        try:
-            self._init_fnc = getattr(Initialisations, init_name)
-        except AttributeError:
-            logger.error(f"Initialisation function {init_name} is unknown")
+    # def _init_initialisation(self):
+    #     init_name = '_'.join(str.lower(self.config.initialisation_name).split())
+    #     try:
+    #         self._init_fnc = getattr(Initialisations, init_name)
+    #     except AttributeError:
+    #         logger.error(f"Initialisation function {init_name} is unknown")
 
     # ------------------------------------------------------
     # --- 2.2 LAYER INITIALIZATION ---
@@ -270,27 +288,21 @@ class Network:
             - Error if the network does not contain enough layers.
             - Error if activation or initializer is missing for a layer.
         """
-        self.weights = np.ndarray(0)
-        self.biaises = np.ndarray(0)
-
+        self.weights = list()
+        self.biaises = list()
 
         if len(self.layers) < 3:
             logger.error(f"Not enough layers")
             raise NetworkLayerCount()
-        
         for i in range(1, len(self.layers)):
-            previous_size: int = self.layers[i-1]
-            size: int = self.layers[i]
+            previous_size: int = self.layers[i-1].shape
+            size: int = self.layers[i].shape
 
-            if not self.layers[i].activation:
-                logger.error(f"Missing Activation in layer n*{i+1}")
-                raise LayerActivation(context="Missing")
             if not self.layers[i].initializer:
                 logger.error(f"Missing Initializer in layer n*{i+1}")
                 raise LayerInitializer(context="Missing")
-            self.weights = np.append(self.weights, self.layers[i].initializer(shape=(size, previous_size)))
-            self.biaises = np.append(self.biaises, self.layers[i].initializer(shape=(size)))
-
+            self.weights.append(self.layers[i].initializer(shape=(size, previous_size)))
+            self.biaises.append(self.layers[i].initializer(shape=(size)))
             
     
 
@@ -445,8 +457,8 @@ class Network:
     #
 
     def _nag_init_momentum(self):
-        self._momentum_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.weights]
-        self._momentum_b = [numpy.full(len(w), 0.) for w in self.weights]
+        self._momentum_w = [np.full((len(w),len(w[0])) , 0.) for w in self.weights]
+        self._momentum_b = [np.full(len(w), 0.) for w in self.weights]
 
     def _nag_init_ahead(self):
         self._ahead_w = [[] for l in range(len(self.config.shape) - 1)]
@@ -454,16 +466,16 @@ class Network:
 
     def _nag_update_ahead(self):
         for i in range(len(self.config.shape) - 1):
-            self._ahead_w[i] = numpy.array(self.weights[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_w[i])
-            self._ahead_b[i] = numpy.array(self.biaises[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_b[i])
+            self._ahead_w[i] = np.array(self.weights[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_w[i])
+            self._ahead_b[i] = np.array(self.biaises[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_b[i])
 
     def _nag_update_weights(self, batch_size:int):
         for i in range(len(self.config.shape) - 1):
             self._momentum_w[i] = self.config.momentum_rate * self._momentum_w[i] + (self._nabla_w[i] / batch_size)
-            self.weights[i] = numpy.array(self.weights[i]) - (self.config.learning_rate * self._momentum_w[i])
+            self.weights[i] = np.array(self.weights[i]) - (self.config.learning_rate * self._momentum_w[i])
 
             self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (self._nabla_b[i] / batch_size) 
-            self.biaises[i] = numpy.array(self.biaises[i]) - (self.config.learning_rate * self._momentum_b[i])
+            self.biaises[i] = np.array(self.biaises[i]) - (self.config.learning_rate * self._momentum_b[i])
 
 
     # ------------------------------------------------------
@@ -507,16 +519,16 @@ class Network:
     #
 
     def _rms_init_velocity(self):
-        self._velocity_w = [numpy.full((len(w),len(w[0])) , 0.0) for w in self.weights]
-        self._velocity_b = [numpy.full(len(w), 0.) for w in self.weights]
+        self._velocity_w = [np.full((len(w),len(w[0])) , 0.0) for w in self.weights]
+        self._velocity_b = [np.full(len(w), 0.) for w in self.weights]
 
     def _rms_update_weights(self, batch_size:int):
         for i in range(len(self.config.shape) - 1):
-            self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate)*(numpy.power(self._nabla_w[i]/batch_size, 2))
-            self.weights[i] -= (self.config.learning_rate / (numpy.sqrt(self._velocity_w[i])+EPS)) * (self._nabla_w[i] / batch_size)
+            self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate)*(np.power(self._nabla_w[i]/batch_size, 2))
+            self.weights[i] -= (self.config.learning_rate / (np.sqrt(self._velocity_w[i])+EPS)) * (self._nabla_w[i] / batch_size)
 
-            self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate)*(numpy.power(self._nabla_b[i]/batch_size, 2))
-            self.biaises[i] -= (self.config.learning_rate / (numpy.sqrt(self._velocity_b[i]) + EPS)) * (self._nabla_b[i] / batch_size)
+            self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate)*(np.power(self._nabla_b[i]/batch_size, 2))
+            self.biaises[i] -= (self.config.learning_rate / (np.sqrt(self._velocity_b[i]) + EPS)) * (self._nabla_b[i] / batch_size)
 
 
     # ------------------------------------------------------
@@ -574,12 +586,12 @@ class Network:
     def _adam_update_weights(self, batch_size:int):
         for i in range(len(self.config.shape) - 1):
             self._momentum_w[i] = self.config.momentum_rate * self._momentum_w[i] + (1 - self.config.momentum_rate) * (self._nabla_w[i]/batch_size)
-            self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate) * (numpy.power(self._nabla_w[i]/batch_size, 2))
-            self.weights[i] -= self._momentum_w[i]/(numpy.sqrt(self._velocity_w[i] + EPS)) * self.config.learning_rate
+            self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate) * (np.power(self._nabla_w[i]/batch_size, 2))
+            self.weights[i] -= self._momentum_w[i]/(np.sqrt(self._velocity_w[i] + EPS)) * self.config.learning_rate
 
             self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (1 - self.config.momentum_rate) * (self._nabla_b[i]/batch_size)
-            self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate) * (numpy.power(self._nabla_b[i]/batch_size, 2))
-            self.biaises[i] -= self._momentum_b[i]/(numpy.sqrt(self._velocity_b[i] + EPS)) * self.config.learning_rate
+            self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate) * (np.power(self._nabla_b[i]/batch_size, 2))
+            self.biaises[i] -= self._momentum_b[i]/(np.sqrt(self._velocity_b[i] + EPS)) * self.config.learning_rate
 
 
     # ------------------------------------------------------
@@ -590,8 +602,8 @@ class Network:
         accuracies:List = []
         losses:List = []
         
-        self._nabla_w = [numpy.full((len(w),len(w[0])) , 0.) for w in self.weights]
-        self._nabla_b = [numpy.full(len(w), 0.) for w in self.weights]
+        self._nabla_w = [np.full((len(w),len(w[0])) , 0.) for w in self.weights]
+        self._nabla_b = [np.full(len(w), 0.) for w in self.weights]
         for d in dataset:
             dn_w = []
             dn_b = []
@@ -602,13 +614,13 @@ class Network:
             losses.append(self._loss_fnc(out[-1], d["label"]))
             accuracies.append(1 if step(out[-1], 0.5) == d["label"] else 0)
             delta = self._output_act_obj.delta(out[-1], d["label"])
-            dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[-2])))
+            dn_w.insert(0, np.outer(np.array(delta), np.array(out[-2])))
             dn_b.insert(0, delta)
             idx = len(self.config.shape)-3
             while idx >= 0:
                 prime = self._act_obj.prime(out[idx+1])
-                delta = numpy.dot(numpy.transpose(weights[idx+1]), delta) * prime
-                dn_w.insert(0, numpy.outer(numpy.array(delta), numpy.array(out[idx])))
+                delta = np.dot(np.transpose(weights[idx+1]), delta) * prime
+                dn_w.insert(0, np.outer(np.array(delta), np.array(out[idx])))
                 dn_b.insert(0, delta)
                 idx-=1
             self._update_nabla(dn_w, dn_b)
@@ -620,7 +632,7 @@ class Network:
             logger.error("data set to small to be used with this batch size")
             raise Exception()
         ds_len = int(len(dataset) / self.config.batch_size) * self.config.batch_size
-        numpy.random.shuffle(dataset)
+        np.random.shuffle(dataset)
         batch = [[dataset[i] for i in range(j, j+self.config.batch_size)] for j in range(0, ds_len, self.config.batch_size)]
         return batch
 
@@ -633,13 +645,13 @@ class Network:
         return out
     
     def _fire_layer(self, weight:List, biaises:List, input:List):
-        res = [numpy.dot(w, input) + b for w,b in zip(weight, biaises)]
+        res = [np.dot(w, input) + b for w,b in zip(weight, biaises)]
         return res
 
     def _update_nabla(self, dn_w:Sequence, dn_b:Sequence):
         for i in range(len(self.config.shape) - 1):
-            self._nabla_w[i] += numpy.array(dn_w[i], float)
-            self._nabla_b[i] += numpy.array(dn_b[i], float)
+            self._nabla_w[i] += np.array(dn_w[i], float)
+            self._nabla_b[i] += np.array(dn_b[i], float)
 
 
     # ======================================================
@@ -661,11 +673,11 @@ class Network:
         print(self.biaises)
         return
     
-    def fire(self, input:numpy.array) -> numpy.array:
+    def fire(self, input:np.array) -> np.array:
         act_input = input
         for l in range(len(self.config.shape) - 2):
-            act_input = numpy.array(self._act_obj.activation(self._fire_layer(self.weights[l], self.biaises[l], act_input)))
-        act_input = numpy.array(self._output_act_obj.activation(self._fire_layer(self.weights[-1], self.biaises[-1], act_input)))
+            act_input = np.array(self._act_obj.activation(self._fire_layer(self.weights[l], self.biaises[l], act_input)))
+        act_input = np.array(self._output_act_obj.activation(self._fire_layer(self.weights[-1], self.biaises[-1], act_input)))
         return act_input
     
     def _save_training(

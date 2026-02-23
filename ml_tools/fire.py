@@ -19,10 +19,10 @@ class Fire:
     w_shape: List[Tuple[int, int]]
     b_shape: List[int]
 
-    nabla_w: List[npt.ArrayLike[ArrayF]]
+    nabla_w: List[List[ArrayF]]
     nabla_b: List[ArrayF]
 
-    __r_nabla_w: List[npt.ArrayLike[ArrayF]]
+    __r_nabla_w: List[List[ArrayF]]
     __r_nabla_b: List[ArrayF]
 
     def __init__(
@@ -33,76 +33,76 @@ class Fire:
         self.losses = list()
 
         self.layers = layers
+        
+        self.__r_nabla_w = list()
+        self.__r_nabla_b = list()
 
         for i in range(1, len(self.layers)):
-            previous_size: int = self.layers[i-1]
-            size: int = self.layers[i]
-            self.weights = np.append(self.weights, self.layers[i].initializer(shape=(size, previous_size)))
-            self.biaises = np.append(self.biaises, self.layers[i].initializer(shape=(size)))
+            previous_size: int = self.layers[i-1].shape
+            size: int = self.layers[i].shape
+            self.__r_nabla_w.append(list(np.full((size,previous_size) , 0.)))
+            self.__r_nabla_b.append(list(np.full(size, 0.)))
 
-        self.__r_nabla_w = list(np.full((len(w),len(w[0])) , 0.) for w in self.weights)
-        self.__r_nabla_b = list(np.full(len(w), 0.) for w in self.weights)
         self._reset()
 
 
     def backward(
             self,
             dataset: List[Dict[str, ArrayF]],
-            weights: List[npt.ArrayLike[ArrayF]],
+            weights: List[List[ArrayF]],
             biaises: List[ArrayF]
         ):
         e_accuracies: List[FloatT] = list()
         e_losses: List[FloatT] = list()
 
         for d in dataset:
-            out: npt.ArrayLike[ArrayF] = self.forward(d["data"], weights, biaises)
+            out: List[ArrayF] = self.forward(d["data"], weights, biaises)
             e_losses.append(self.layers[-1].activation.loss(out[-1], d["label"]))
-            e_accuracies.append(1 if step(out[-1], 0.5) == d["label"] else 0)
+            e_accuracies.append(1 if step(out[-1], 0.5) == d["label"].tolist() else 0)
             delta: ArrayF = self.layers[-1].activation.delta(out[-1], d["label"])
             self.nabla_w[-1] += np.outer(delta, out[-2])
             self.nabla_b[-1] += delta
-            idx: int = len(self.w_shape)-2
+            idx: int = len(weights)-2
             while idx >= 0:
-                prime: ArrayF = self.layers[idx].activation.prime(out[idx+1])
+                prime: ArrayF = self.layers[idx+1].activation.prime(out[idx+1])
                 delta: ArrayF = np.dot(np.transpose(weights[idx+1]), delta) * prime
                 self.nabla_w[idx] += np.outer(np.array(delta), np.array(out[idx]))
-                self.nabla_b += delta
+                self.nabla_b[idx] += delta
                 idx-=1
         
-        self.accuracies(np.mean(e_accuracies))
-        self.losses(np.mean(e_losses))
+        self.accuracies.append(np.mean(e_accuracies))
+        self.losses.append(np.mean(e_losses))
     
 
     def forward(
             self,
             input: ArrayF,
-            weights: List[npt.ArrayLike[ArrayF]],
+            weights: List[List[ArrayF]],
             biaises: List[ArrayF]
-        ) -> npt.ArrayLike[ArrayF]:
-        out: npt.ArrayLike[ArrayF] = np.ndarray(0)
-        out = np.append(out, input)
+        ) -> List[ArrayF]:
+        out: List[ArrayF] = [input]
         for i in range(len(weights) - 1):
-            out = np.append(out, self.layers[i].activation.activation(self.layer(weights[i], biaises[i], out[-1])))
-        out = np.append(out, self.layers[-1].activation.activation(self.layer(weights[-1], biaises[-1], out[-1])))
+            out.append(self.layers[i + 1].activation.activation(self.layer(out[-1], weights[i], biaises[i])))
+        out.append(self.layers[-1].activation.activation(self.layer(out[-1], weights[-1], biaises[-1])))
         return out
 
 
     def layer(
             self,
             input: ArrayF,
-            weights: npt.ArrayLike[ArrayF],
+            weights: List[ArrayF],
             biaises: ArrayF
         ) -> ArrayF:
-        res: ArrayF = np.ndarray()
+        res: ArrayF = np.ndarray(0)
         for w, b in zip(weights, biaises):
-            res = res.append(res, np.dot(w, input) + b)
+            res = np.append(res, np.dot(w, input) + b)
         return res
 
 
     def full(
             self,
             input: ArrayF,
-            weights: List[npt.ArrayLike[ArrayF]],
+            weights: List[npt.NDArray[ArrayF]],
             biaises: List[ArrayF]
         ) -> ArrayF:
         return self.forward(input, weights, biaises)[-1]

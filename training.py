@@ -4,10 +4,9 @@ from core.network import Network
 from ml_tools.fire import Fire
 from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient
 from ml_tools.activations import Sigmoid
+from ml_tools.initialisations import he_normal
 
 
-from core.network import Network, NetworkConfig
-from ml_tools.evaluations import classification
 from typing import List, Dict, Sequence
 from utils.constant import COLUMNS, DROP_COLUMNS
 from utils.types import ArrayF, FloatT
@@ -195,55 +194,71 @@ def main():
     df_train, df_test = create_normalized_data(training_path=train_file, testing_path=test_file)
     l_train, l_test = process_df_2_output(df_train=df_train, df_test=df_test)
 
-    net: Network = Model.create_network([
-        [
-            Layer(shape=9),
-            Layer(shape=16, activation=Sigmoid),
-            Layer(shape=2, activation=Sigmoid)
-        ]
-    ])
-
-    opti: Optimizer = Nesterov_Accelerated_Gradient(Fire(net.layers), net, momentum_rate=0.9)
-
-    
-
-
-
-    EPOCH = 350
     try:
-        myNet = Network(NetworkConfig(
-            learning_rate=0.0025,
-            epoch=EPOCH,
-            batch_size=4,
-            loss_threshold=0.004,
-            shape=[9, 16, 2],
-            evaluation=classification,
-            activation_name="sigmoid",
-            loss_name="mean square error",
-            output_activation_name="sigmoid",
-            initialisation_name="he uniform",
-            optimisation_name="mini_adam"
-        ))
-        myNet.option_visu_training = True
-        accuracies, losses = myNet.train(l_train, l_test)
-    except Exception as e:
-        print(f"[FATAL] -> The network failed: {e}")
-        return
-    epoch = [i for i in range(EPOCH)]
+        model = Model()
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=epoch, y=accuracies["testing"], name="accuracies testing", line={'color': 'darkred', 'width': 4}))
-    fig.add_trace(go.Scatter(x=epoch, y=accuracies["training"], name="accuracies training", line={'color': 'firebrick', 'width': 4}))
-    fig.add_trace(go.Scatter(x=epoch, y=losses["testing"], name="losses testing", line={'color': 'darkslateblue', 'width': 4}))
-    fig.add_trace(go.Scatter(x=epoch, y=losses["training"], name="losses training", line={'color': 'dodgerblue', 'width': 4}))
-
-    fig.update_layout(
-        title=dict(
-            text="Accuracies and losses throught the epochs"
+        model.create_network([
+                Layer(shape=9),
+                Layer(shape=16, activation="Sigmoid", initializer=he_normal),
+                Layer(shape=2, activation="Sigmoid", initializer=he_normal)
+            ],
+            0.005,
+            2
         )
-    )
 
-    fig.write_html("plots/training_recap.html", auto_open=True)
+        fire: Fire = Fire(model.network.layers)
+        opti: Optimizer = Nesterov_Accelerated_Gradient(fire, model.network, momentum_rate=0.9)
+
+        model.fit(
+            optimizer=opti.full,
+            ds_train=l_train,
+            ds_test=l_test,
+            loss="mean_square_error",
+            epochs=1000,
+            early_stoper=0.04,
+            print_training_state=True
+        )
+    except Exception as e:
+        print(e)
+        return
+
+
+
+    # EPOCH = 350
+    # try:
+    #     myNet = Network(NetworkConfig(
+    #         learning_rate=0.0025,
+    #         epoch=EPOCH,
+    #         batch_size=4,
+    #         loss_threshold=0.004,
+    #         shape=[9, 16, 2],
+    #         evaluation=classification,
+    #         activation_name="sigmoid",
+    #         loss_name="mean square error",
+    #         output_activation_name="sigmoid",
+    #         initialisation_name="he uniform",
+    #         optimisation_name="mini_adam"
+    #     ))
+    #     myNet.option_visu_training = True
+    #     accuracies, losses = myNet.train(l_train, l_test)
+    # except Exception as e:
+    #     print(f"[FATAL] -> The network failed: {e}")
+    #     return
+    # epoch = [i for i in range(EPOCH)]
+
+    # fig = go.Figure()
+    # fig.add_trace(go.Scatter(x=epoch, y=accuracies["testing"], name="accuracies testing", line={'color': 'darkred', 'width': 4}))
+    # fig.add_trace(go.Scatter(x=epoch, y=accuracies["training"], name="accuracies training", line={'color': 'firebrick', 'width': 4}))
+    # fig.add_trace(go.Scatter(x=epoch, y=losses["testing"], name="losses testing", line={'color': 'darkslateblue', 'width': 4}))
+    # fig.add_trace(go.Scatter(x=epoch, y=losses["training"], name="losses training", line={'color': 'dodgerblue', 'width': 4}))
+
+    # fig.update_layout(
+    #     title=dict(
+    #         text="Accuracies and losses throught the epochs"
+    #     )
+    # )
+
+    # fig.write_html("plots/training_recap.html", auto_open=True)
 
 
 
