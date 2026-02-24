@@ -2,7 +2,7 @@ from core.layer import Layer
 from core.model import Model
 from core.network import Network
 from ml_tools.fire import Fire
-from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient
+from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient, Gradient_Descent
 from ml_tools.activations import Sigmoid
 from ml_tools.initialisations import he_normal
 
@@ -97,14 +97,14 @@ def process_df_1_output(
     data_train: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_train)):
         data_train.append(dict())
-        data_train[-1]["label"] = [1] if df_train.iloc[i, 0] == 'M' else [0]
-        data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:])
+        data_train[-1]["label"] = numpy.array([1] if df_train.iloc[i, 0] == 'M' else [0], dtype=FloatT)
+        data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:], dtype=FloatT)
 
     data_test: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_test)):
         data_test.append(dict())
-        data_test[-1]["label"] = [1] if df_test.iloc[i, 0] == 'M' else [0]
-        data_test[-1]["data"] = numpy.array(df_test.iloc[i, 1:])
+        data_test[-1]["label"] = numpy.array([1] if df_test.iloc[i, 0] == 'M' else [0], dtype=FloatT)
+        data_test[-1]["data"] = numpy.array(df_test.iloc[i, 1:], dtype=FloatT)
     return data_train, data_test
 
 def process_df_2_output(
@@ -143,14 +143,14 @@ def process_df_2_output(
     data_train: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_train)):
         data_train.append({})
-        data_train[-1]["label"] = numpy.array([1, 0]) if df_train.iloc[i, 0] == 'M' else numpy.array([0, 1])
-        data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:])
+        data_train[-1]["label"] = numpy.array([1, 0]) if df_train.iloc[i, 0] == 'M' else numpy.array([0, 1], dtype=FloatT)
+        data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:], dtype=FloatT)
 
     data_test: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_test)):
         data_test.append({})
-        data_test[-1]["label"] = numpy.array([1, 0]) if df_test.iloc[i, 0] == 'M' else numpy.array([0, 1])
-        data_test[-1]["data"] = numpy.array(df_test.iloc[i, 1:])
+        data_test[-1]["label"] = numpy.array([1, 0]) if df_test.iloc[i, 0] == 'M' else numpy.array([0, 1], dtype=FloatT)
+        data_test[-1]["data"] = numpy.array(df_test.iloc[i, 1:], dtype=FloatT)
     return data_train, data_test
 
 
@@ -202,14 +202,13 @@ def main():
                 Layer(shape=16, activation="Sigmoid", initializer=he_normal),
                 Layer(shape=2, activation="Sigmoid", initializer=he_normal)
             ],
-            0.005,
+            0.5,
             2
         )
 
-        fire: Fire = Fire(model.network.layers)
-        opti: Optimizer = Nesterov_Accelerated_Gradient(fire, model.network, momentum_rate=0.9)
+        opti: Optimizer = Gradient_Descent(model.fire, model.network)
 
-        model.fit(
+        accuracies, losses = model.fit(
             optimizer=opti.full,
             ds_train=l_train,
             ds_test=l_test,
@@ -246,19 +245,24 @@ def main():
     #     return
     # epoch = [i for i in range(EPOCH)]
 
-    # fig = go.Figure()
-    # fig.add_trace(go.Scatter(x=epoch, y=accuracies["testing"], name="accuracies testing", line={'color': 'darkred', 'width': 4}))
-    # fig.add_trace(go.Scatter(x=epoch, y=accuracies["training"], name="accuracies training", line={'color': 'firebrick', 'width': 4}))
-    # fig.add_trace(go.Scatter(x=epoch, y=losses["testing"], name="losses testing", line={'color': 'darkslateblue', 'width': 4}))
-    # fig.add_trace(go.Scatter(x=epoch, y=losses["training"], name="losses training", line={'color': 'dodgerblue', 'width': 4}))
+    print(accuracies)
+    print(losses)
 
-    # fig.update_layout(
-    #     title=dict(
-    #         text="Accuracies and losses throught the epochs"
-    #     )
-    # )
+    epoch = [i for i in range(len(accuracies))]
 
-    # fig.write_html("plots/training_recap.html", auto_open=True)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=epoch, y=accuracies.get("testing"), name="accuracies testing", line={'color': 'darkred', 'width': 4}))
+    fig.add_trace(go.Scatter(x=epoch, y=accuracies.get("training"), name="accuracies training", line={'color': 'firebrick', 'width': 4}))
+    fig.add_trace(go.Scatter(x=epoch, y=losses.get("testing"), name="losses testing", line={'color': 'darkslateblue', 'width': 4}))
+    fig.add_trace(go.Scatter(x=epoch, y=losses.get("training"), name="losses training", line={'color': 'dodgerblue', 'width': 4}))
+
+    fig.update_layout(
+        title=dict(
+            text="Accuracies and losses throught the epochs"
+        )
+    )
+
+    fig.write_html("plots/training_recap.html", auto_open=True)
 
 
 

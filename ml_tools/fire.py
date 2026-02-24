@@ -12,12 +12,10 @@ logger = Logger()
 
 class Fire:
 
-    accuracies: List[Activation]
+    accuracies: List[FloatT]
+    losses: List[FloatT]
     
     layers: List[Layer]
-
-    w_shape: List[Tuple[int, int]]
-    b_shape: List[int]
 
     nabla_w: List[List[ArrayF]]
     nabla_b: List[ArrayF]
@@ -40,8 +38,8 @@ class Fire:
         for i in range(1, len(self.layers)):
             previous_size: int = self.layers[i-1].shape
             size: int = self.layers[i].shape
-            self.__r_nabla_w.append(list(np.full((size,previous_size) , 0.)))
-            self.__r_nabla_b.append(list(np.full(size, 0.)))
+            self.__r_nabla_w.append(list(np.full((size,previous_size) , 0., dtype=FloatT)))
+            self.__r_nabla_b.append(list(np.full(size, 0., dtype=FloatT)))
 
         self._reset()
 
@@ -52,8 +50,8 @@ class Fire:
             weights: List[List[ArrayF]],
             biaises: List[ArrayF]
         ):
-        e_accuracies: List[FloatT] = list()
-        e_losses: List[FloatT] = list()
+        e_accuracies: ArrayF = np.ndarray(0)
+        e_losses: ArrayF = np.ndarray(0)
 
         for d in dataset:
             out: List[ArrayF] = self.forward(d["data"], weights, biaises)
@@ -69,9 +67,9 @@ class Fire:
                 self.nabla_w[idx] += np.outer(np.array(delta), np.array(out[idx]))
                 self.nabla_b[idx] += delta
                 idx-=1
-        
-        self.accuracies.append(np.mean(e_accuracies))
-        self.losses.append(np.mean(e_losses))
+
+        self.accuracies.append(np.mean(e_accuracies, dtype=FloatT))
+        self.losses.append(np.mean(e_losses, dtype=FloatT))
     
 
     def forward(
@@ -102,7 +100,7 @@ class Fire:
     def full(
             self,
             input: ArrayF,
-            weights: List[npt.NDArray[ArrayF]],
+            weights: List[List[ArrayF]],
             biaises: List[ArrayF]
         ) -> ArrayF:
         return self.forward(input, weights, biaises)[-1]

@@ -18,7 +18,7 @@ from utils.types import ArrayF, FloatT
 logger = Logger()
 
 def binary_classification(
-    fire: Fire,
+    network,
     loss_fnc: Callable,
     ds_test: List[Dict[str, ArrayF]],
     positiv: List[int]
@@ -27,8 +27,8 @@ def binary_classification(
     tp = tn = fp = fn = 0
 
     for t in ds_test:
-        output: ArrayF = fire.full(t.get("data"))
-        label: ArrayF = t.get("label")
+        output: ArrayF = network.fire.full(t.get("data"), network.weights, network.biaises)
+        label: List[int] = list(t.get("label"))
         if step(output, 0.5) == positiv:
             if label == positiv:
                 tp += 1 

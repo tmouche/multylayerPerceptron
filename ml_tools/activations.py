@@ -6,6 +6,7 @@ import ml_tools.losses as Losses
 
 from abc import ABC, abstractmethod
 
+from utils.types import FloatT
 
 from utils.logger import Logger
 logger = Logger()
@@ -46,25 +47,25 @@ class Nothing(Activation):
         return y
     
     def _mean_square_error_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         prime = self.prime(y)
         return loss * prime
     
     def _mean_absolute_error_grad(self, y, e):
-        loss = abs(np.array(y) - np.array(e))
+        loss = abs(y - e)
         prime = self.prime(y)
         return loss * prime
     
     def _binary_cross_entropy_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         return loss
     
     def _categorical_cross_entropy_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         return loss
 
     def _spare_cross_entropy_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         return loss
 
 
@@ -77,33 +78,33 @@ class Sigmoid(Activation):
         if isinstance(z, float):
             return 1./(1.+math.exp(-z))
         z = np.clip(z, -500, 500)
-        return [1./(1.+math.exp(-x)) for x in z]
+        return np.array([1./(1.+math.exp(-x)) for x in z], dtype=FloatT)
 
     @staticmethod
     def prime(y):
-        y = np.array(y)
+        y = y
         return y*(1.-y)
     
     def _mean_square_error_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         prime = self.prime(y)
         return loss * prime
     
     def _mean_absolute_error_grad(self, y, e):
-        loss = abs(np.array(y) - np.array(e))
+        loss = abs(y - e)
         prime = self.prime(y)
         return loss * prime
     
     def _binary_cross_entropy_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         return loss
     
     def _categorical_cross_entropy_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         return loss
 
     def _spare_cross_entropy_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         return loss
 
 
@@ -115,21 +116,21 @@ class Tanh(Activation):
     def activation(z):
         if isinstance(z):
             return (math.exp(z)-math.exp(-z))/(math.exp(z)+math.exp(-z))
-        return [(math.exp(x)-math.exp(-x))/(math.exp(x)+math.exp(-x)) for x in z]
+        return np.array([(math.exp(x)-math.exp(-x))/(math.exp(x)+math.exp(-x)) for x in z], dtype=FloatT)
 
     @staticmethod
     def prime(y):
         if isinstance(y):
             return 1-math.pow(y, 2)
-        return [1-math.pow(x, 2) for x in y]
+        return np.array([1-math.pow(x, 2) for x in y], dtype=FloatT)
     
     def _mean_square_error_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         prime = self.prime(y)
         return loss * prime
     
     def _mean_absolute_error_grad(self, y, e):
-        loss = abs(np.array(y) - np.array(e))
+        loss = abs(y - e)
         prime = self.prime(y)
         return loss * prime 
     
@@ -143,21 +144,21 @@ class ReLu(Activation):
     def activation(z):
         if isinstance(z):
             return z if z > 0. else 0.
-        return [x if x > 0. else 0. for x in z]
+        return np.array([x if x > 0. else 0. for x in z], dtype=FloatT)
 
     @staticmethod
     def prime(y):
         if isinstance(y):
             return 1. if y > 0. else 0.
-        return [1. if x > 0. else 0. for x in y]
+        return np.array([1. if x > 0. else 0. for x in y], dtype=FloatT)
     
     def _mean_square_error_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         prime = self.prime(y)
         return loss * prime
     
     def _mean_absolute_error_grad(self, y, e):
-        loss = abs(np.array(y) - np.array(e))
+        loss = abs(y - e)
         prime = self.prime(y)
         return loss * prime
 
@@ -169,28 +170,28 @@ class Leaky_ReLu(Activation):
 
     @staticmethod
     def activation(z):
-        if isinstance(z, float):
+        if isinstance(z, float):    
             return z if z > 0. else 0.01*z
-        return [x if x > 0. else 0.01*x for x in z]
+        return np.array([x if x > 0. else 0.01*x for x in z], dtype=FloatT)
 
     @staticmethod
     def prime(y):
         if isinstance(y, float):
             return 1. if y > 0 else 0.01
-        return [1. if x > 0. else 0.01 for x in y]
+        return np.array([1. if x > 0. else 0.01 for x in y], dtype=FloatT)
     
     def _mean_square_error_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         prime = self.prime(y)
         return loss * prime
     
     def _mean_absolute_error_grad(self, y, e):
-        loss = abs(np.array(y) - np.array(e))
+        loss = abs(y - e)
         prime = self.prime(y)
         return loss * prime
     
     def _spare_cross_entropy_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         return loss
 
 
@@ -203,18 +204,18 @@ class Softmax(Activation):
         if isinstance(z, float):
             raise Exception("Error log: Softmax is in/out vector function and doesnot handle scalar")
         sum_exp_z = sum(np.exp(z))
-        return [math.exp(x)/sum_exp_z for x in z]
+        return np.array([math.exp(x)/sum_exp_z for x in z], dtype=FloatT)
 
     @staticmethod
     def prime(y):
         if isinstance(y, float):
             return 1. if y > 0 else 0.01
-        return [1. if x > 0. else 0.01 for x in y]
+        return np.array([1. if x > 0. else 0.01 for x in y], dtype=FloatT  )
     
     def _categorical_cross_entropy_grad(self, y, e):
-        loss = np.array(y) - np.array(e)
+        loss = y - e
         return loss
     
     def _kullback_leibler_divergence_grad(self, y, e):
-        loss = abs(np.array(y) - np.array(e))
+        loss = abs(y - e)
         return loss

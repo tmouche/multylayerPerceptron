@@ -2,6 +2,7 @@ from core.layer import Layer
 from dataclasses import dataclass
 from ml_tools.utils import step
 from ml_tools.activations import Activation
+from ml_tools.fire import Fire
 from typing import (
     Callable,
     Dict,
@@ -87,14 +88,16 @@ class Network:
     # Network structure
     layers: List[Layer]
 
+    fire: Fire
+
     batch_size: int
 
     learning_rate: FloatT
     # momentum_rate: FloatT = 0.9
     # velocity_rate: FloatT = 0.9
 
-    weights: npt.NDArray[npt.NDArray[ArrayF]]
-    biaises: npt.NDArray[ArrayF]
+    weights: List[List[ArrayF]]
+    biaises: List[ArrayF]
 
     # _nabla_w:Sequence = None
     # _nabla_b:Sequence = None
@@ -165,6 +168,7 @@ class Network:
             logger.error(f"Unexpected exception: {e}")
             raise UnexpectedException()
 
+        self.fire = Fire(self.layers)
             
 
     # ------------------------------------------------------
@@ -673,12 +677,12 @@ class Network:
         print(self.biaises)
         return
     
-    def fire(self, input:np.array) -> np.array:
-        act_input = input
-        for l in range(len(self.config.shape) - 2):
-            act_input = np.array(self._act_obj.activation(self._fire_layer(self.weights[l], self.biaises[l], act_input)))
-        act_input = np.array(self._output_act_obj.activation(self._fire_layer(self.weights[-1], self.biaises[-1], act_input)))
-        return act_input
+    # def fire(self, input:np.array) -> np.array:
+    #     act_input = input
+    #     for l in range(len(self.config.shape) - 2):
+    #         act_input = np.array(self._act_obj.activation(self._fire_layer(self.weights[l], self.biaises[l], act_input)))
+    #     act_input = np.array(self._output_act_obj.activation(self._fire_layer(self.weights[-1], self.biaises[-1], act_input)))
+    #     return act_input
     
     def _save_training(
             self,

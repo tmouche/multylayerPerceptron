@@ -1,6 +1,7 @@
 from core.layer import Layer
 from core.network import Network
 from ml_tools.evaluations import binary_classification
+from ml_tools.fire import Fire
 from ml_tools.optimizers import Optimizer
 from multipledispatch import dispatch
 from time import perf_counter
@@ -30,6 +31,7 @@ class Model:
     accuracies: List[Dict[str, List[FloatT]]]
     losses: List[Dict[str, List[FloatT]]]
 
+    fire: Fire
     network: Network
 
     def __init__(self):
@@ -37,6 +39,7 @@ class Model:
         self.accuracies = list()
         self.losses = list()
 
+        self.fire = None
         self.network = None
 
 
@@ -57,12 +60,14 @@ class Model:
             logger.error(netErr)
             raise ModelNetCreate(netErr)
         self.network = new_net
+        self.fire = Fire(self.network.layers) 
 
 
     def load_network(self, path_to_init: str) -> Network:
         pass
 
-        
+
+
     def fit(
         self,
         optimizer: Callable,
@@ -81,10 +86,11 @@ class Model:
         
         logger.info("Starting training...")
         start_time: FloatT = perf_counter()
+        max_epoch: int = 0
         for i_epoch in range(epochs):
             try:
                 training: Dict[str, FloatT] = optimizer(ds_train)
-                testing: Dict[str, FloatT] = binary_classification(self.fire, self.network.layers[-1].activation.loss, ds_test, POSITIV)
+                testing: Dict[str, FloatT] = binary_classification(self.network, self.network.layers[-1].activation.loss, ds_test, POSITIV)
 
                 accuracies.get('testing').append(testing.get("accuracy"))
                 accuracies.get('training').append(training.get("accuracy"))
@@ -92,28 +98,33 @@ class Model:
                 losses.get('training').append(training.get("loss"))
 
                 if print_training_state:
-                    Model.print_epoch_state(
-                        epoch=i_epoch,
+                    Model._print_epoch_state(
+                        self,
+                        act_epoch=i_epoch,
+                        epoch=epochs,
                         training_accuracy=training.get("accuracy"),
                         training_loss=training.get("loss"),
                         testing_accuracy= testing.get("accuracy"),
-                        testing_loss= testing.get("loss")
+                        testing_loss= testing.get("loss"),
                     )
                 if testing.get("loss") < early_stoper:
+                    max_epoch = i_epoch
                     break
             except KeyboardInterrupt:
+                max_epoch = i_epoch
                 logger.info("Trainning Stopped")
                 break
             except Exception as e:
                 logger.error(f"Unexpected exception: {e}")
                 raise UnexpectedException()
         time_stamp: FloatT = perf_counter() - start_time
+        if not max_epoch: max_epoch = epochs
         if history_save:
             save_to_history(
                 optimizer=optimizer,
                 activation_function=self.network.layers[-1].output_activation,
                 loss_function=loss,
-                epoch=epochs,
+                epoch=max_epoch,
                 learning_rate=self.network.learning_rate,
                 network_shape=[self.network.layers[i].shape for i in range(len(self.network.layers))],
                 batch_size=self.network.batch_size,
@@ -138,7 +149,6 @@ class Model:
             raise UnexpectedException()
 
     def load_layers(self, loss: str):
-        
         for i in range(1, len(self.network.layers)):
             try:
                 self.network.layers[i].activation = getattr(Activation, self.network.layers[i].output_activation)(loss)
@@ -148,3 +158,25 @@ class Model:
             except Exception as e:
                 logger.error(f"Unexpected exception: {e}")
                 raise UnexpectedException()
+            
+    def _print_epoch_state(
+            self,
+            act_epoch:int,
+            epoch:int,
+            training_accuracy:float,
+            training_loss:float,
+            testing_accuracy:float,
+            testing_loss:float,
+    ):
+        message = (
+            "\n===============================\n"
+            f"At epoch {act_epoch}/{epoch}\n"
+            "=== Training ===\n"
+            f"Accuracy: {training_accuracy},\n"
+            f"Loss: {training_loss},\n"
+            "=== Testing ===\n"
+            f"Accuracy: {testing_accuracy},\n"
+            f"Loss: {testing_loss},\n"
+            "==============================\n"
+        )
+        logger.info(message)
