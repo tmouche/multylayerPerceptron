@@ -23,16 +23,16 @@ class Optimizer(ABC):
     fire: Fire
     net: Network
 
-    accuracies: List[FloatT]
-    losses: List[FloatT]
+    accuracies: ArrayF
+    losses: ArrayF
 
     def __init__(
             self,
             fire: Fire,
             network: Network
         ):
-        self.accuracies = list()
-        self.losses = list()
+        self.accuracies = np.ndarray(0)
+        self.losses = np.ndarray(0)
 
         self.fire = fire
         self.net = network
@@ -64,8 +64,8 @@ class Optimizer(ABC):
             self.fire.backward(list(batch[i]) if self.net.batch_size == 1 else batch[i], self.in_use_weights, self.in_use_biaises)
             self._update(batch_size)
             self.fire._reset()
-        self.accuracies.append(np.mean(self.fire.accuracies[-len(batch):], dtype=FloatT))
-        self.losses.append(np.mean(self.fire.losses[-len(batch):], dtype=FloatT))
+        self.accuracies = np.append(self.accuracies, np.mean(self.fire.accuracies[-len(batch):]))
+        self.losses = np.append(self.losses, np.mean(self.fire.losses[-len(batch):]))
 
     
     def _metric(self) -> Dict[str, List[FloatT]]:

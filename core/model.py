@@ -23,21 +23,22 @@ from utils.types import ArrayF, FloatT
 
 import ml_tools.activations as Activation
 import ml_tools.losses as Loss
+import numpy as np
 
 logger = Logger()
 
 class Model:
 
-    accuracies: List[Dict[str, List[FloatT]]]
-    losses: List[Dict[str, List[FloatT]]]
+    accuracies: Dict[str, ArrayF]
+    losses: Dict[str, ArrayF]
 
     fire: Fire
     network: Network
 
     def __init__(self):
         
-        self.accuracies = list()
-        self.losses = list()
+        self.accuracies = dict(testing=np.ndarray(0), training=np.ndarray(0))
+        self.losses = dict(testing=np.ndarray(0), training=np.ndarray(0))
 
         self.fire = None
         self.network = None
@@ -78,9 +79,7 @@ class Model:
         early_stoper: FloatT = 0.,
         print_training_state: bool = True,
         history_save: bool = False,
-    ) -> Tuple[Dict[str, List[FloatT]], Dict[str, List[FloatT]]]:
-        accuracies: Dict[str, List[FloatT]] = dict(testing=list(), training=list())
-        losses: Dict[str, List[FloatT]] = dict(testing=list(), training=list())
+    ):
 
         self.load_layers(loss)
         
@@ -92,10 +91,10 @@ class Model:
                 training: Dict[str, FloatT] = optimizer(ds_train)
                 testing: Dict[str, FloatT] = binary_classification(self.network, self.network.layers[-1].activation.loss, ds_test, POSITIV)
 
-                accuracies.get('testing').append(testing.get("accuracy"))
-                accuracies.get('training').append(training.get("accuracy"))
-                losses.get('testing').append(testing.get("loss"))
-                losses.get('training').append(training.get("loss"))
+                self.accuracies["testing"] = np.append(self.accuracies.get("testing"), testing.get("accuracy"))
+                self.losses["testing"] = np.append(self.losses.get("testing"), testing.get("loss"))
+                self.accuracies["training"] = np.append(self.accuracies.get("training"), training.get("accuracy"))
+                self.losses["training"] = np.append(self.losses.get("training"), training.get("loss"))
 
                 if print_training_state:
                     Model._print_epoch_state(
@@ -128,15 +127,14 @@ class Model:
                 learning_rate=self.network.learning_rate,
                 network_shape=[self.network.layers[i].shape for i in range(len(self.network.layers))],
                 batch_size=self.network.batch_size,
-                min_training_loss=min(losses.get('training')),
-                min_testing_loss=min(losses.get('testing')),
+                min_training_loss=min(self.losses.get('training')),
+                min_testing_loss=min(self.losses.get('testing')),
                 accuracy=testing.get('accuracy'),
                 precision=testing.get('precision'),
                 recall=testing.get('recall'),
                 f1=testing.get('f1'),
                 time=time_stamp
             )
-        return accuracies, losses
         
     def get_loss(func_name: str) -> Callable:
         try:

@@ -12,8 +12,8 @@ logger = Logger()
 
 class Fire:
 
-    accuracies: List[FloatT]
-    losses: List[FloatT]
+    accuracies: ArrayF
+    losses: ArrayF
     
     layers: List[Layer]
 
@@ -27,8 +27,8 @@ class Fire:
             self,
             layers: List[Layer]
         ):
-        self.accuracies = list()
-        self.losses = list()
+        self.accuracies = np.ndarray(0)
+        self.losses = np.ndarray(0)
 
         self.layers = layers
         
@@ -50,14 +50,15 @@ class Fire:
             weights: List[List[ArrayF]],
             biaises: List[ArrayF]
         ):
-        e_accuracies: ArrayF = np.ndarray(0)
-        e_losses: ArrayF = np.ndarray(0)
+        ds_size: int = len(dataset)
+        e_accuracies: ArrayF = np.ndarray(ds_size)
+        e_losses: ArrayF = np.ndarray(ds_size)
 
-        for d in dataset:
-            out: List[ArrayF] = self.forward(d["data"], weights, biaises)
-            e_losses.append(self.layers[-1].activation.loss(out[-1], d["label"]))
-            e_accuracies.append(1 if step(out[-1], 0.5) == d["label"].tolist() else 0)
-            delta: ArrayF = self.layers[-1].activation.delta(out[-1], d["label"])
+        for i in range(ds_size):
+            out: List[ArrayF] = self.forward(dataset[i].get("data"), weights, biaises)
+            e_losses[i] = self.layers[-1].activation.loss(out[-1], dataset[i].get("label"))
+            e_accuracies[i] = 1 if step(out[-1], 0.5) == dataset[i].get("label").tolist() else 0
+            delta: ArrayF = self.layers[-1].activation.delta(out[-1], dataset[i].get("label"))
             self.nabla_w[-1] += np.outer(delta, out[-2])
             self.nabla_b[-1] += delta
             idx: int = len(weights)-2
@@ -68,8 +69,9 @@ class Fire:
                 self.nabla_b[idx] += delta
                 idx-=1
 
-        self.accuracies.append(np.mean(e_accuracies, dtype=FloatT))
-        self.losses.append(np.mean(e_losses, dtype=FloatT))
+        self.accuracies = np.append(self.accuracies, np.mean(e_accuracies))
+        self.losses = np.append(self.losses, np.mean(e_losses))
+
     
 
     def forward(
