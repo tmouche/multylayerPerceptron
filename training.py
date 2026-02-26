@@ -2,7 +2,7 @@ from core.layer import Layer
 from core.model import Model
 from core.network import Network
 from ml_tools.fire import Fire
-from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient, Gradient_Descent, RMS_Propagation
+from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient, Gradient_Descent, RMS_Propagation, ADAM
 from ml_tools.activations import Sigmoid
 from ml_tools.initialisations import he_normal
 
@@ -53,7 +53,7 @@ def create_normalized_data(
         df_test.columns = COLUMNS
     except:
         print(f"Error log: can not process {testing_path}")
-        raise FileNotFoundError(training_path)
+        raise FileNotFoundError(testing_path)
 
     df_train.drop(columns=DROP_COLUMNS, inplace=True)
     df_test.drop(columns=DROP_COLUMNS, inplace=True)
@@ -202,19 +202,19 @@ def main():
                 Layer(shape=16, activation="Sigmoid", initializer=he_normal),
                 Layer(shape=2, activation="Sigmoid", initializer=he_normal)
             ],
-            0.5,
-            2
+            0.0025,
+            25
         )
 
-        opti: Optimizer = RMS_Propagation(model.fire, model.network, velocity_rate=0.8)
+        opti: Optimizer = ADAM(model.fire, model.network, momentum_rate=0.8, velocity_rate=0.8)
 
         model.fit(
-            optimizer=opti.full,
+            optimizer=opti.stochastic,
             ds_train=l_train,
             ds_test=l_test,
             loss="mean_square_error",
             epochs=1000,
-            early_stoper=0.04,
+            early_stoper=0.003,
             print_training_state=True
         )
     except Exception as e:

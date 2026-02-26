@@ -365,174 +365,174 @@ class Network:
     # ------------------------------------------------------
     # --- 3.1 GRADIENT DESCEND METHODS ---
     # ------------------------------------------------------
-    def _full_gd(self, dataset:List) -> Dict:
-        accuracy, loss = self._back_propagation(dataset, self.weights, self.biaises)
-        self._gd_update_weights(len(dataset))
-        return self._create_epoch_state(accuracy, loss)
+    # def _full_gd(self, dataset:List) -> Dict:
+    #     accuracy, loss = self._back_propagation(dataset, self.weights, self.biaises)
+    #     self._gd_update_weights(len(dataset))
+    #     return self._create_epoch_state(accuracy, loss)
     
-    def _mini_gd(self, dataset:List) -> Dict:
-        accuracies:List = []
-        losses:List = []
+    # def _mini_gd(self, dataset:List) -> Dict:
+    #     accuracies:List = []
+    #     losses:List = []
 
-        batch = self._prepare_batch(dataset)
-        for b in range(len(batch)):
-            accuracy, loss = self._back_propagation(batch[b], self.weights, self.biaises)
-            accuracies.append(accuracy)
-            losses.append(loss)
-            self._gd_update_weights(self.config.batch_size)
-        return self._create_epoch_state(
-            sum(accuracies)/len(accuracies),
-            sum(losses)/len(losses)
-        )
+    #     batch = self._prepare_batch(dataset)
+    #     for b in range(len(batch)):
+    #         accuracy, loss = self._back_propagation(batch[b], self.weights, self.biaises)
+    #         accuracies.append(accuracy)
+    #         losses.append(loss)
+    #         self._gd_update_weights(self.config.batch_size)
+    #     return self._create_epoch_state(
+    #         sum(accuracies)/len(accuracies),
+    #         sum(losses)/len(losses)
+    #     )
 
-    def _stochastic_gd(self, dataset:List) -> Dict:
-        accuracies:List = []
-        losses:List = []
+    # def _stochastic_gd(self, dataset:List) -> Dict:
+    #     accuracies:List = []
+    #     losses:List = []
 
-        # IL FAUT RAJOUTER LE STOCHATIC ICI 
-        for d in dataset:
-            accuracy, loss = self._back_propagation([d], self.weights, self.biaises)
-            accuracies.append(accuracy)
-            losses.append(loss)
-            self._gd_update_weights(1)
-        return self._create_epoch_state(
-            sum(accuracies)/len(accuracies),
-            sum(losses)/len(losses)
-        )
+    #     # IL FAUT RAJOUTER LE STOCHATIC ICI 
+    #     for d in dataset:
+    #         accuracy, loss = self._back_propagation([d], self.weights, self.biaises)
+    #         accuracies.append(accuracy)
+    #         losses.append(loss)
+    #         self._gd_update_weights(1)
+    #     return self._create_epoch_state(
+    #         sum(accuracies)/len(accuracies),
+    #         sum(losses)/len(losses)
+    #     )
 
-    #
-    # --- 3.1.X GRADIENT DESCEND UTILS ---
-    #
-    def _gd_update_weights(self, batch_size:int):
-        for i in range(len(self.config.shape) - 1):
-            self.weights[i] -= (self.config.learning_rate * (self._nabla_w[i] / batch_size))
-            self.biaises[i] -= (self.config.learning_rate * (self._nabla_b[i] / batch_size))
+    # #
+    # # --- 3.1.X GRADIENT DESCEND UTILS ---
+    # #
+    # def _gd_update_weights(self, batch_size:int):
+    #     for i in range(len(self.config.shape) - 1):
+    #         self.weights[i] -= (self.config.learning_rate * (self._nabla_w[i] / batch_size))
+    #         self.biaises[i] -= (self.config.learning_rate * (self._nabla_b[i] / batch_size))
 
 
     # ------------------------------------------------------
     # --- 3.2 GRADIENT ACCELERATED METHODS ---
     # ------------------------------------------------------
 
-    def _full_nag(self, dataset:List):
-        self._nag_init_momentum()
-        self._nag_init_ahead()
-        self._update_ahead()
-        accuracy, loss = self._back_propagation(dataset, self._ahead_w, self._ahead_b)
-        self._nag_update_weights(len(dataset))
-        return self._create_epoch_state(accuracy, loss)
+    # def _full_nag(self, dataset:List):
+    #     self._nag_init_momentum()
+    #     self._nag_init_ahead()
+    #     self._update_ahead()
+    #     accuracy, loss = self._back_propagation(dataset, self._ahead_w, self._ahead_b)
+    #     self._nag_update_weights(len(dataset))
+    #     return self._create_epoch_state(accuracy, loss)
     
-    def _mini_nag(self, dataset:List):
-        accuracies:List = []
-        losses:List = []
+    # def _mini_nag(self, dataset:List):
+    #     accuracies:List = []
+    #     losses:List = []
 
-        self._nag_init_momentum()
-        self._nag_init_ahead()
-        batch = self._prepare_batch(dataset)
-        for b in range(len(batch)):
-            self._nag_update_ahead()
-            accuracy, loss = self._back_propagation(batch[b], self._ahead_w, self._ahead_b)
-            accuracies.append(accuracy)
-            losses.append(loss)
-            self._nag_update_weights(self.config.batch_size)
-        return self._create_epoch_state(
-            sum(accuracies)/len(accuracies),
-            sum(losses)/len(losses)
-        )
+    #     self._nag_init_momentum()
+    #     self._nag_init_ahead()
+    #     batch = self._prepare_batch(dataset)
+    #     for b in range(len(batch)):
+    #         self._nag_update_ahead()
+    #         accuracy, loss = self._back_propagation(batch[b], self._ahead_w, self._ahead_b)
+    #         accuracies.append(accuracy)
+    #         losses.append(loss)
+    #         self._nag_update_weights(self.config.batch_size)
+    #     return self._create_epoch_state(
+    #         sum(accuracies)/len(accuracies),
+    #         sum(losses)/len(losses)
+    #     )
 
-    def _stochatic_nag(self, dataset:List):
-        accuracies:List = []
-        losses:List = []
+    # def _stochatic_nag(self, dataset:List):
+    #     accuracies:List = []
+    #     losses:List = []
         
-        self._nag_init_momentum()
-        self._nag_init_ahead()
-        for d in dataset:
-            self.__nag_update_ahead()
-            accuracy, loss = self._back_propagation([d], self._ahead_w, self._ahead_b)
-            accuracies.append(accuracy)
-            losses.append(loss)
-            self._nag_update_weights(1)
-        return self._create_epoch_state(
-            sum(accuracies)/len(accuracies),
-            sum(losses)/len(losses)
-        )
+    #     self._nag_init_momentum()
+    #     self._nag_init_ahead()
+    #     for d in dataset:
+    #         self.__nag_update_ahead()
+    #         accuracy, loss = self._back_propagation([d], self._ahead_w, self._ahead_b)
+    #         accuracies.append(accuracy)
+    #         losses.append(loss)
+    #         self._nag_update_weights(1)
+    #     return self._create_epoch_state(
+    #         sum(accuracies)/len(accuracies),
+    #         sum(losses)/len(losses)
+    #     )
 
-    #
-    # --- 3.2.X GRADIENT ACCELERATED UTILS ---
-    #
+    # #
+    # # --- 3.2.X GRADIENT ACCELERATED UTILS ---
+    # #
 
-    def _nag_init_momentum(self):
-        self._momentum_w = [np.full((len(w),len(w[0])) , 0.) for w in self.weights]
-        self._momentum_b = [np.full(len(w), 0.) for w in self.weights]
+    # def _nag_init_momentum(self):
+    #     self._momentum_w = [np.full((len(w),len(w[0])) , 0.) for w in self.weights]
+    #     self._momentum_b = [np.full(len(w), 0.) for w in self.weights]
 
-    def _nag_init_ahead(self):
-        self._ahead_w = [[] for l in range(len(self.config.shape) - 1)]
-        self._ahead_b = [[] for l in range(len(self.config.shape) - 1)]
+    # def _nag_init_ahead(self):
+    #     self._ahead_w = [[] for l in range(len(self.config.shape) - 1)]
+    #     self._ahead_b = [[] for l in range(len(self.config.shape) - 1)]
 
-    def _nag_update_ahead(self):
-        for i in range(len(self.config.shape) - 1):
-            self._ahead_w[i] = np.array(self.weights[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_w[i])
-            self._ahead_b[i] = np.array(self.biaises[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_b[i])
+    # def _nag_update_ahead(self):
+    #     for i in range(len(self.config.shape) - 1):
+    #         self._ahead_w[i] = np.array(self.weights[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_w[i])
+    #         self._ahead_b[i] = np.array(self.biaises[i]) - (self.config.momentum_rate * self.config.learning_rate * self._momentum_b[i])
 
-    def _nag_update_weights(self, batch_size:int):
-        for i in range(len(self.config.shape) - 1):
-            self._momentum_w[i] = self.config.momentum_rate * self._momentum_w[i] + (self._nabla_w[i] / batch_size)
-            self.weights[i] = np.array(self.weights[i]) - (self.config.learning_rate * self._momentum_w[i])
+    # def _nag_update_weights(self, batch_size:int):
+    #     for i in range(len(self.config.shape) - 1):
+    #         self._momentum_w[i] = self.config.momentum_rate * self._momentum_w[i] + (self._nabla_w[i] / batch_size)
+    #         self.weights[i] = np.array(self.weights[i]) - (self.config.learning_rate * self._momentum_w[i])
 
-            self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (self._nabla_b[i] / batch_size) 
-            self.biaises[i] = np.array(self.biaises[i]) - (self.config.learning_rate * self._momentum_b[i])
+    #         self._momentum_b[i] = self.config.momentum_rate * self._momentum_b[i] + (self._nabla_b[i] / batch_size) 
+    #         self.biaises[i] = np.array(self.biaises[i]) - (self.config.learning_rate * self._momentum_b[i])
 
 
     # ------------------------------------------------------
     # --- 3.3 ROOT MEAN SQUARE PROPAGATION METHODS ---
     # ------------------------------------------------------
-    def _full_rms_prop(self, dataset:List):
-        self._rms_init_velocity()
-        accuracy, loss = self._back_propagation(dataset, self.weights, self.biaises)
-        self._rms_update_weights(len(dataset))
-        return self._create_epoch_state(accuracy, loss)
+    # def _full_rms_prop(self, dataset:List):
+    #     self._rms_init_velocity()
+    #     accuracy, loss = self._back_propagation(dataset, self.weights, self.biaises)
+    #     self._rms_update_weights(len(dataset))
+    #     return self._create_epoch_state(accuracy, loss)
 
-    def _mini_rms_prop(self, dataset:List):
-        accuracies:List = []
-        losses:List = []
+    # def _mini_rms_prop(self, dataset:List):
+    #     accuracies:List = []
+    #     losses:List = []
 
-        self._rms_init_velocity()
-        batch = self._prepare_batch(dataset)
-        for b in range(len(batch)):
-            accuracy, loss = self._back_propagation(batch[b], self.weights, self.biaises)
-            accuracies.append(accuracy)
-            losses.append(loss)
-            self._rms_update_weights(self.config.batch_size)
-        return self._create_epoch_state(
-            sum(accuracies)/len(accuracies),
-            sum(losses)/len(losses)
-        )
+    #     self._rms_init_velocity()
+    #     batch = self._prepare_batch(dataset)
+    #     for b in range(len(batch)):
+    #         accuracy, loss = self._back_propagation(batch[b], self.weights, self.biaises)
+    #         accuracies.append(accuracy)
+    #         losses.append(loss)
+    #         self._rms_update_weights(self.config.batch_size)
+    #     return self._create_epoch_state(
+    #         sum(accuracies)/len(accuracies),
+    #         sum(losses)/len(losses)
+    #     )
 
-    def _stochatic_rms_prop(self, dataset:List):
-        accuracies:List = []
-        losses:List = []
+    # def _stochatic_rms_prop(self, dataset:List):
+    #     accuracies:List = []
+    #     losses:List = []
 
-        self._rms_init_velocity()
-        for d in dataset:
-            accuracy, loss = self._back_propagation([d], self.weights, self.biaises)
-            accuracies.append(accuracy)
-            losses.append(loss)
-            self._rms_update_weights(1)
+    #     self._rms_init_velocity()
+    #     for d in dataset:
+    #         accuracy, loss = self._back_propagation([d], self.weights, self.biaises)
+    #         accuracies.append(accuracy)
+    #         losses.append(loss)
+    #         self._rms_update_weights(1)
 
-    #
-    # --- 3.2.X ROOT MEAN SQUARE PROPAGATION UTILS ---
-    #
+    # #
+    # # --- 3.2.X ROOT MEAN SQUARE PROPAGATION UTILS ---
+    # #
 
-    def _rms_init_velocity(self):
-        self._velocity_w = [np.full((len(w),len(w[0])) , 0.0) for w in self.weights]
-        self._velocity_b = [np.full(len(w), 0.) for w in self.weights]
+    # def _rms_init_velocity(self):
+    #     self._velocity_w = [np.full((len(w),len(w[0])) , 0.0) for w in self.weights]
+    #     self._velocity_b = [np.full(len(w), 0.) for w in self.weights]
 
-    def _rms_update_weights(self, batch_size:int):
-        for i in range(len(self.config.shape) - 1):
-            self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate)*(np.power(self._nabla_w[i]/batch_size, 2))
-            self.weights[i] -= (self.config.learning_rate / (np.sqrt(self._velocity_w[i])+EPS)) * (self._nabla_w[i] / batch_size)
+    # def _rms_update_weights(self, batch_size:int):
+    #     for i in range(len(self.config.shape) - 1):
+    #         self._velocity_w[i] = self.config.velocity_rate * self._velocity_w[i] + (1 - self.config.velocity_rate)*(np.power(self._nabla_w[i]/batch_size, 2))
+    #         self.weights[i] -= (self.config.learning_rate / (np.sqrt(self._velocity_w[i])+EPS)) * (self._nabla_w[i] / batch_size)
 
-            self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate)*(np.power(self._nabla_b[i]/batch_size, 2))
-            self.biaises[i] -= (self.config.learning_rate / (np.sqrt(self._velocity_b[i]) + EPS)) * (self._nabla_b[i] / batch_size)
+    #         self._velocity_b[i] = self.config.velocity_rate * self._velocity_b[i] + (1 - self.config.velocity_rate)*(np.power(self._nabla_b[i]/batch_size, 2))
+    #         self.biaises[i] -= (self.config.learning_rate / (np.sqrt(self._velocity_b[i]) + EPS)) * (self._nabla_b[i] / batch_size)
 
 
     # ------------------------------------------------------

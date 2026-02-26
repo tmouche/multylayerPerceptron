@@ -46,8 +46,7 @@ class Optimizer(ABC):
 
     def deterministic(self, dataset: List[Dict[str, ArrayF]]) -> Dict:
         self._reset()
-        new_ds_len: int = floor(len(dataset) / self.net.batch_size) * self.net.batch_size
-        batch: List[List[Dict[str, ArrayF]]] = [[dataset[i] for i in range(j, j + self.net.batch_size)] for j in range(0, new_ds_len, self.net.batch_size)]
+        batch: List[List[Dict[str, ArrayF]]] = self._prepare_batch(dataset, self.net.batch_size)
         self._learn(batch, self.net.batch_size)
         return self._metric()
 
@@ -55,7 +54,7 @@ class Optimizer(ABC):
         self._reset()
         random_dataset: List[Dict[str, ArrayF]] = dataset.copy() 
         np.random.shuffle(random_dataset)
-        batch: List[List[Dict[str, ArrayF]]] = self.prepare_batch(random_dataset)
+        batch: List[List[Dict[str, ArrayF]]] = self._prepare_batch(random_dataset, self.net.batch_size)
         self._learn(batch, self.net.batch_size)
         return self._metric()
 
@@ -66,8 +65,15 @@ class Optimizer(ABC):
             self.fire._reset()
         self.accuracies = np.append(self.accuracies, np.mean(self.fire.accuracies[-len(batch):]))
         self.losses = np.append(self.losses, np.mean(self.fire.losses[-len(batch):]))
-
     
+    def _prepare_batch(
+            self,
+            dataset: List[Dict[str, ArrayF]],
+            batch_size: int
+        ) -> List[Dict[str, ArrayF]]:
+        new_ds_len: int = floor(len(dataset) / batch_size) * batch_size
+        return [[dataset[i] for i in range(j, j + batch_size)] for j in range(0, new_ds_len, batch_size)]
+
     def _metric(self) -> Dict[str, List[FloatT]]:
         return dict(accuracy=self.accuracies[-1], loss=self.losses[-1])
 
@@ -87,7 +93,7 @@ class Gradient_Descent(Optimizer):
             fire: Fire,
             network: Network
         ):
-            super().__init__(fire=fire, network=network)
+            Optimizer.__init__(self, fire=fire, network=network)
 
     def _update(self, batch_size: int):
         for i in range(len(self.net.weights)):
@@ -105,32 +111,32 @@ class RMS_Propagation(Optimizer):
     velocity_w: List[List[ArrayF]]
     velocity_b: List[ArrayF]
 
-    __r_velocity_w: List[List[ArrayF]]
-    __r_velocity_b: List[ArrayF]
-
     def __init__(
             self,
             fire: Fire,
             network: Network,
             velocity_rate: FloatT
         ):
-            super().__init__(fire=fire, network=network)
+            Optimizer.__init__(self, fire=fire, network=network)
             self.velocity_rate = velocity_rate
-            self.__r_velocity_w = list(np.full((len(w),len(w[0])) , 0., dtype=FloatT) for w in self.net.weights)
-            self.__r_velocity_b = list(np.full(len(w), 0., dtype=FloatT) for w in self.net.weights)
-            self._reset()
+            self.velocity_w = list(np.full((len(w),len(w[0])) , 0., dtype=FloatT) for w in self.net.weights)
+            self.velocity_b = list(np.full(len(w), 0., dtype=FloatT) for w in self.net.weights)
 
     def _update(self, batch_size:int):
         for i in range(len(self.net.weights)):
-            self.velocity_w[i] = self.velocity_rate * self.velocity_w[i] + (1 - self.velocity_rate)*(np.power(self.fire.nabla_w[i]/batch_size, 2))
-            self.net.weights[i] -= (self.net.learning_rate / (np.sqrt(self.velocity_w[i]) + EPS)) * (self.fire.nabla_w[i] / batch_size)
+            self._update_velocity(i, batch_size)
+            self._update_parameters(i, batch_size)
 
-            self.velocity_b[i] = self.velocity_rate * self.velocity_b[i] + (1 - self.velocity_rate)*(np.power(self.fire.nabla_b[i]/batch_size, 2))
-            self.net.biaises[i] -= (self.net.learning_rate / (np.sqrt(self.velocity_b[i]) + EPS)) * (self.fire.nabla_b[i] / batch_size)
+    def _update_velocity(self, index: int, batch_size:int):
+        self.velocity_w[index] = self.velocity_rate * self.velocity_w[index] + (1 - self.velocity_rate)*(np.power(self.fire.nabla_w[index]/batch_size, 2))
+        self.velocity_b[index] = self.velocity_rate * self.velocity_b[index] + (1 - self.velocity_rate)*(np.power(self.fire.nabla_b[index]/batch_size, 2))
+
+    def _update_parameters(self, index: int, batch_size:int):
+        self.net.weights[index] -= (self.net.learning_rate / (np.sqrt(self.velocity_w[index]) + EPS)) * (self.fire.nabla_w[index] / batch_size)
+        self.net.biaises[index] -= (self.net.learning_rate / (np.sqrt(self.velocity_b[index]) + EPS)) * (self.fire.nabla_b[index] / batch_size)
 
     def _reset(self):
-        self.velocity_w = self.__r_velocity_w.copy()
-        self.velocity_b = self.__r_velocity_b.copy()
+        pass
 
 
 class Nesterov_Accelerated_Gradient(Optimizer):
@@ -153,7 +159,7 @@ class Nesterov_Accelerated_Gradient(Optimizer):
             network: Network,
             momentum_rate: FloatT
     ):
-        super().__init__(fire=fire, network=network)
+        Optimizer.__init__(self, fire=fire, network=network)
         self.momentum_rate = momentum_rate
         self.__r_momentum_w = list(np.full((len(w),len(w[0])) , 0., dtype=FloatT) for w in self.net.weights)
         self.__r_momentum_b = list(np.full(len(w), 0., dtype=FloatT) for w in self.net.weights)
@@ -169,9 +175,57 @@ class Nesterov_Accelerated_Gradient(Optimizer):
 
     def _update(self, batch_size: int):
         for i in range(len(self.net.weights)):
-            self.momentum_w[i] = self.momentum_rate * self.momentum_w[i] + (self.fire.nabla_w[i] / batch_size)
-            self.net.weights[i] = self.net.weights[i] - (self.net.learning_rate * self.momentum_w[i])
-            self.momentum_b[i] = self.momentum_rate * self.momentum_b[i] + (self.fire.nabla_b[i] / batch_size) 
-            self.net.biaises[i] = self.net.biaises[i] - (self.net.learning_rate * self.momentum_b[i])
-            self.ahead_w[i] = self.net.weights[i] - (self.momentum_rate * self.net.learning_rate * self.momentum_w[i])
-            self.ahead_b[i] = self.net.biaises[i] - (self.momentum_rate * self.net.learning_rate * self.momentum_b[i])
+            self._update_momentum(i, batch_size)
+            self._update_parameters(i)
+            self._update_ahead_parameters(i)
+    
+    def _update_momentum(self, index: int, batch_size:int):
+        self.momentum_w[index] = self.momentum_rate * self.momentum_w[index] + (self.fire.nabla_w[index] / batch_size)
+        self.momentum_b[index] = self.momentum_rate * self.momentum_b[index] + (self.fire.nabla_b[index] / batch_size) 
+
+    def _update_parameters(self, index: int):
+        self.net.weights[index] = self.net.weights[index] - (self.net.learning_rate * self.momentum_w[index])
+        self.net.biaises[index] = self.net.biaises[index] - (self.net.learning_rate * self.momentum_b[index])
+
+    def _update_ahead_parameters(self, index: int):
+        self.ahead_w[index] = self.net.weights[index] - (self.momentum_rate * self.net.learning_rate * self.momentum_w[index])
+        self.ahead_b[index] = self.net.biaises[index] - (self.momentum_rate * self.net.learning_rate * self.momentum_b[index])
+
+    
+class ADAM(RMS_Propagation, Nesterov_Accelerated_Gradient):
+
+    def __init__(
+            self,
+            fire: Fire,
+            network: Network,
+            momentum_rate: FloatT,
+            velocity_rate: FloatT
+    ):
+        RMS_Propagation.__init__(
+            self,
+            fire=fire,
+            network=network,
+            velocity_rate=velocity_rate
+        )
+        Nesterov_Accelerated_Gradient.__init__(
+            self,
+            fire=fire,
+            network=network,
+            momentum_rate=momentum_rate
+        )
+
+    def _reset(self):
+        RMS_Propagation._reset(self)
+        Nesterov_Accelerated_Gradient._reset(self)
+
+    def _update(self, batch_size: int):
+        for i in range(len(self.net.weights)):
+            self._update_momentum(i, batch_size)
+            self._update_velocity(i, batch_size)
+            self._update_parameters(i)
+            self._update_ahead_parameters(i)
+
+    def _update_parameters(self, index: int):
+        self.net.weights[index] -= self.momentum_w[index]/(np.sqrt(self.velocity_w[index] + EPS)) * self.net.learning_rate
+        self.net.biaises[index] -= self.momentum_b[index]/(np.sqrt(self.velocity_b[index] + EPS)) * self.net.learning_rate
+    
