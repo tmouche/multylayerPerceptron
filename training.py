@@ -9,12 +9,15 @@ from ml_tools.initialisations import he_normal
 
 from typing import List, Dict, Sequence
 from utils.constant import COLUMNS, DROP_COLUMNS
+from utils.logger import Logger
 from utils.types import ArrayF, FloatT
 
 import numpy
 import pandas
 import plotly.graph_objects as go 
 import sys
+
+logger = Logger()
 
 def	normalize(
         df:pandas.DataFrame,
@@ -143,53 +146,25 @@ def process_df_2_output(
     data_train: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_train)):
         data_train.append({})
-        data_train[-1]["label"] = numpy.array([1, 0]) if df_train.iloc[i, 0] == 'M' else numpy.array([0, 1], dtype=FloatT)
+        data_train[-1]["label"] = numpy.array([1, 0], dtype=FloatT) if df_train.iloc[i, 0] == 'M' else numpy.array([0, 1], dtype=FloatT)
         data_train[-1]["data"] = numpy.array(df_train.iloc[i, 1:], dtype=FloatT)
 
     data_test: List[Dict[str, ArrayF]] = list()
     for i in range(len(df_test)):
         data_test.append({})
-        data_test[-1]["label"] = numpy.array([1, 0]) if df_test.iloc[i, 0] == 'M' else numpy.array([0, 1], dtype=FloatT)
+        data_test[-1]["label"] = numpy.array([1, 0], dtype=FloatT) if df_test.iloc[i, 0] == 'M' else numpy.array([0, 1], dtype=FloatT)
         data_test[-1]["data"] = numpy.array(df_test.iloc[i, 1:], dtype=FloatT)
     return data_train, data_test
 
 
 def main():
-    argc = len(sys.argv)
-    args = []
-    i = 0
-    while i < argc:
-        if sys.argv[i][:2] == "--":
-            args.append([])
-            args[-1].append(sys.argv[i])
-            i+=1
-            while i < argc and sys.argv[i][:2] != "--":
-                args[-1].append(sys.argv[i])
-                i+=1
-        elif i > 0:
-            print(f"Error log: Unknow token {sys.argv[i]}")
-            exit(1)
-        else:
-            i+=1
-    train_file = None
-    test_file = None
-    for i in range(len(args)):
-        if args[i][0] == "--training":
-            if len(args[i]) != 2 or train_file:
-                print(f"Error log: the training option should be unique and look like %--training *path_to_file*%")
-                exit(1)
-            train_file = args[i][1]
-        elif args[i][0] == "--testing":
-            if len(args[i]) != 2 or test_file:
-                print(f"Error log: the testing option should be unique and look like %--testing *path_to_file*%")
-                exit(1)
-            test_file = args[i][1]
-        else:
-            print(f"Error log: Unknow option {args[i][0]}")
-            exit(1)
-    if train_file is None or test_file is None:
-        print(f"Error log: missing mandatory argument (--init/--training/--testing)")
-        exit(1)
+
+    if len(sys.argv) != 3:
+        logger.error("python training.py *path_to_training_dataset* *path_to_testing_dataset*")
+        return 1
+
+    train_file: str = sys.argv[1]
+    test_file: str = sys.argv[2]
     
     df_train, df_test = create_normalized_data(training_path=train_file, testing_path=test_file)
     l_train, l_test = process_df_2_output(df_train=df_train, df_test=df_test)
@@ -203,7 +178,7 @@ def main():
                 Layer(shape=2, activation="Sigmoid", initializer=he_normal)
             ],
             0.0025,
-            25
+            2
         )
 
         opti: Optimizer = ADAM(model.fire, model.network, momentum_rate=0.8, velocity_rate=0.8)
@@ -217,10 +192,9 @@ def main():
             early_stoper=0.003,
             print_training_state=True
         )
-    except Exception as e:
-        print(e)
-        return
-
+    except Exception as exc:
+        if exc: logger.error(exc)
+        return 1
 
     epoch = [i for i in range(len(model.accuracies.get("training")))]
 
@@ -237,8 +211,9 @@ def main():
     )
 
     fig.write_html("plots/training_recap.html", auto_open=True)
+    return 0
 
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())

@@ -191,8 +191,64 @@ class Nesterov_Accelerated_Gradient(Optimizer):
         self.ahead_w[index] = self.net.weights[index] - (self.momentum_rate * self.net.learning_rate * self.momentum_w[index])
         self.ahead_b[index] = self.net.biaises[index] - (self.momentum_rate * self.net.learning_rate * self.momentum_b[index])
 
+class ADAM(Optimizer):
     
-class ADAM(RMS_Propagation, Nesterov_Accelerated_Gradient):
+    velocity_rate: FloatT
+    momentum_rate: FloatT
+
+    velocity_w: List[List[ArrayF]]
+    velocity_b: List[ArrayF]
+    momentum_w: List[List[ArrayF]]
+    momentum_b: List[ArrayF]
+
+    __r_momentum_w: List[List[ArrayF]]
+    __r_momentum_b: List[ArrayF]
+
+    def __init__(
+        self,
+        fire: Fire,
+        network: Network,
+        momentum_rate: FloatT,
+        velocity_rate: FloatT
+    ):
+        Optimizer.__init__(self, fire=fire, network=network)
+        self.momentum_rate = momentum_rate
+        self.velocity_rate = velocity_rate
+        self.velocity_w = list(np.full((len(w),len(w[0])) , 0., dtype=FloatT) for w in self.net.weights)
+        self.velocity_b = list(np.full(len(w), 0., dtype=FloatT) for w in self.net.weights)
+        self.__r_momentum_w = list(np.full((len(w),len(w[0])) , 0., dtype=FloatT) for w in self.net.weights)
+        self.__r_momentum_b = list(np.full(len(w), 0., dtype=FloatT) for w in self.net.weights)
+        self._reset()
+
+    def _reset(self):
+        self.momentum_w = self.__r_momentum_w.copy()
+        self.momentum_b = self.__r_momentum_b.copy()
+
+    def _update(self, batch_size: int):
+        for i in range(len(self.net.weights)):
+            self._update_momentum(i, batch_size)
+            self._update_velocity(i, batch_size)
+            self._update_parameters(i, batch_size)
+
+    def _update_momentum(self, index: int, batch_size: int):
+        self.momentum_w[index] = self.momentum_rate * self.momentum_w[index] + (1 - self.momentum_rate) * (self.fire.nabla_w[index] / batch_size)
+        self.momentum_b[index] = self.momentum_rate * self.momentum_b[index] + (1 - self.momentum_rate) * (self.fire.nabla_b[index] / batch_size) 
+
+    def _update_velocity(self, index: int, batch_size:int):
+        self.velocity_w[index] = self.velocity_rate * self.velocity_w[index] + (1 - self.velocity_rate)*(np.power(self.fire.nabla_w[index]/batch_size, 2))
+        self.velocity_b[index] = self.velocity_rate * self.velocity_b[index] + (1 - self.velocity_rate)*(np.power(self.fire.nabla_b[index]/batch_size, 2))
+
+    def _update_parameters(self, index: int, batch_size: int):
+        momentum_corr_w: List[ArrayF] = self.momentum_w[index] / (1 - self.momentum_rate ** batch_size)
+        momentum_corr_b: List[ArrayF] = self.momentum_b[index] / (1 - self.momentum_rate ** batch_size)
+        velocity_corr_w: List[ArrayF] = self.velocity_w[index] / (1 - self.velocity_rate ** batch_size)
+        velocity_corr_b: List[ArrayF] = self.velocity_b[index] / (1 - self.velocity_rate ** batch_size)
+
+        self.net.weights[index] -= momentum_corr_w/(np.sqrt(velocity_corr_w + EPS)) * self.net.learning_rate
+        self.net.biaises[index] -= momentum_corr_b/(np.sqrt(velocity_corr_b + EPS)) * self.net.learning_rate
+
+
+class Adapative_Ahead_Momentum(RMS_Propagation, Nesterov_Accelerated_Gradient):
 
     def __init__(
             self,

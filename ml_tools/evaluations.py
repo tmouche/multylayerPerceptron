@@ -1,5 +1,3 @@
-
-from ml_tools.fire import Fire
 from ml_tools.utils import (
     step,
     accuracy,
