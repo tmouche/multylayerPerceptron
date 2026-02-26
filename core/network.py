@@ -69,23 +69,7 @@ class Network:
             
         
     def __init_layers(self):
-        """
-        Initialize network weights and biases for all layers.
-
-        Raises:
-            NetworkLayerCount:
-                If the network contains fewer than three layers.
-
-            LayerActivation:
-                If a layer is missing an activation function.
-
-            LayerInitializer:
-                If a layer is missing a weight initializer.
-
-        Logs:
-            - Error if the network does not contain enough layers.
-            - Error if activation or initializer is missing for a layer.
-        """
+        
         self.weights = list()
         self.biaises = list()
 

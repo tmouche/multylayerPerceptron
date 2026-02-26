@@ -1,7 +1,6 @@
 from core.layer import Layer
 from core.model import Model
 from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient, Gradient_Descent, RMS_Propagation, ADAM
-from ml_tools.activations import Sigmoid
 from ml_tools.initialisations import he_normal
 
 

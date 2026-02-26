@@ -44,7 +44,20 @@ class Model:
         learning_rate: FloatT,
         batch_size: int
     ):
-        
+        """
+        Create and initialize a new neural network with specified layers, learning rate, and batch size.
+
+        Args:
+            layers (List[Layer]): List of layer objects defining the network architecture.
+            learning_rate (FloatT): Learning rate for the network optimizer.
+            batch_size (int): Number of samples per training batch.
+
+        Raises:
+            ModelNetCreate: If network creation fails due to a `NetworkException`.
+
+        Logs:
+            - Error if `NetworkException` is raised during network initialization.
+        """
         try:
             new_net: Network = Network(
                 layers=layers,
@@ -74,6 +87,33 @@ class Model:
         print_training_state: bool = True,
         history_save: bool = False,
     ):
+        """
+        Train the neural network on the provided training dataset and evaluate on the test dataset.
+
+        Args:
+            optimizer (Callable): Function performing optimization for one training step.
+            ds_train (List[Dict[str, ArrayF]]): Training dataset as a list of input-output dictionaries.
+            ds_test (List[Dict[str, ArrayF]]): Testing dataset for validation.
+            loss (str): Name of the loss function to use.
+            epochs (int): Maximum number of training epochs.
+            early_stoper (FloatT, optional): Threshold for early stopping based on test loss. Defaults to 0.
+            print_training_state (bool, optional): If True, prints progress at each epoch. Defaults to True.
+            history_save (bool, optional): If True, saves training history after completion. Defaults to False.
+
+        Raises:
+            UnexpectedException: If an unexpected exception occurs during training.
+            KeyboardInterrupt: If training is interrupted manually.
+
+        Logs:
+            - Info when training starts.
+            - Info if training is stopped manually.
+            - Error if an unexpected exception occurs during training.
+
+        Notes:
+            - Tracks training and testing accuracy and loss over epochs.
+            - Supports early stopping based on `early_stoper`.
+            - Optionally saves detailed training history including metrics, network configuration, and timing.
+        """
 
         self.load_layers(loss)
         

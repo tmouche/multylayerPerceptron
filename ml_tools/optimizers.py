@@ -36,17 +36,58 @@ class Optimizer(ABC):
         self.in_use_biaises = network.biaises
 
     def full(self, dataset: List[Dict[str, ArrayF]]):
+        """
+        Train and evaluate the network on the entire dataset at once.
+        Args:
+            dataset (List[Dict[str, ArrayF]]): Complete dataset as a list of input-output dictionaries.
+        Returns:
+            Dict: Computed performance metrics after training.
+        Logs:
+            - None explicitly; metrics are computed internally.
+        Notes:
+            - Resets network gradients before training.
+            - Calls `_learn` on the full dataset as a single batch.
+            - Returns metrics via `_metric`.
+        """
         self._reset()
         self._learn([dataset], len(dataset))
         return self._metric()
 
     def deterministic(self, dataset: List[Dict[str, ArrayF]]) -> Dict:
+        """
+        Train and evaluate the network using deterministic batching (sequential order).
+        Args:
+            dataset (List[Dict[str, ArrayF]]): Dataset as a list of input-output dictionaries.
+        Returns:
+            Dict: Computed performance metrics after training.
+        Logs:
+            - None explicitly; metrics are computed internally.
+        Notes:
+            - Resets network gradients before training.
+            - Splits the dataset into sequential batches using `_prepare_batch`.
+            - Calls `_learn` on each batch sequentially.
+            - Returns metrics via `_metric`.
+        """
         self._reset()
         batch: List[List[Dict[str, ArrayF]]] = self._prepare_batch(dataset, self.net.batch_size)
         self._learn(batch, self.net.batch_size)
         return self._metric()
 
     def stochastic(self, dataset: List[Dict[str, ArrayF]]) -> Dict:
+        """
+        Train and evaluate the network using stochastic batching (randomized order).
+        Args:
+            dataset (List[Dict[str, ArrayF]]): Dataset as a list of input-output dictionaries.
+        Returns:
+            Dict: Computed performance metrics after training.
+        Logs:
+            - None explicitly; metrics are computed internally.
+        Notes:
+            - Resets network gradients before training.
+            - Randomizes dataset order and splits into batches using `_prepare_batch`.
+            - Calls `_learn` on each batch sequentially.
+            - Returns metrics via `_metric`.
+        """
         self._reset()
         random_dataset: List[Dict[str, ArrayF]] = dataset.copy() 
         np.random.shuffle(random_dataset)
@@ -83,7 +124,13 @@ class Optimizer(ABC):
 
 
 class Gradient_Descent(Optimizer):
+    """
+    Gradient Descent optimizer for updating network weights and biases.
 
+    Args:
+        fire (Fire): Object providing gradients (nabla_w, nabla_b) for the network.
+        network (Network): Neural network instance to optimize.
+    """
     def __init__(
             self,
             fire: Fire,
@@ -101,7 +148,15 @@ class Gradient_Descent(Optimizer):
 
 
 class RMS_Propagation(Optimizer):
+    """
+    RMSProp optimizer: updates network parameters using adaptive learning rates 
+    based on a moving average of squared gradients.
 
+    Args:
+        fire (Fire): Object providing gradients (nabla_w, nabla_b) for the network.
+        network (Network): Neural network instance to optimize.
+        velocity_rate (FloatT): Decay rate for velocity computation.
+    """
     velocity_rate: FloatT
 
     velocity_w: List[List[ArrayF]]
@@ -136,7 +191,15 @@ class RMS_Propagation(Optimizer):
 
 
 class Nesterov_Accelerated_Gradient(Optimizer):
+    """
+    Nesterov Accelerated Gradient optimizer: applies momentum with lookahead updates
+    to accelerate convergence.
 
+    Args:
+        fire (Fire): Object providing gradients (nabla_w, nabla_b) for the network.
+        network (Network): Neural network instance to optimize.
+        momentum_rate (FloatT): Momentum decay rate for velocity updates.
+    """
     momentum_rate: FloatT
 
     momentum_w: List[List[ArrayF]]
@@ -188,7 +251,16 @@ class Nesterov_Accelerated_Gradient(Optimizer):
 
 
 class ADAM(Optimizer):
-    
+    """
+    Adam optimizer: combines momentum and RMSProp to adapt learning rates
+    for each parameter individually.
+
+    Args:
+        fire (Fire): Object providing gradients (nabla_w, nabla_b) for the network.
+        network (Network): Neural network instance to optimize.
+        momentum_rate (FloatT): Momentum decay rate.
+        velocity_rate (FloatT): Decay rate for RMSProp-style velocity.
+    """
     velocity_rate: FloatT
     momentum_rate: FloatT
 
@@ -245,7 +317,16 @@ class ADAM(Optimizer):
 
 
 class Adapative_Ahead_Momentum(RMS_Propagation, Nesterov_Accelerated_Gradient):
+    """
+    Hybrid optimizer combining RMSProp and Nesterov Accelerated Gradient:
+    applies adaptive learning rates with momentum and lookahead updates.
 
+    Args:
+        fire (Fire): Object providing gradients (nabla_w, nabla_b) for the network.
+        network (Network): Neural network instance to optimize.
+        momentum_rate (FloatT): Momentum decay rate.
+        velocity_rate (FloatT): Decay rate for RMSProp-style velocity.
+    """
     def __init__(
             self,
             fire: Fire,
