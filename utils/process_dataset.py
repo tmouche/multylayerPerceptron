@@ -1,13 +1,7 @@
 from utils.constant import COLUMNS, SPLIT_DATASET
-from typing import List
-
-
-
 import pandas
 import plotly.figure_factory as ff
 import sys
-
-
 
 def plot_dataset(df: pandas.DataFrame):
 	
@@ -69,9 +63,6 @@ def plot_dataset(df: pandas.DataFrame):
 
 
 def	main():
-
-	
-
 	if len(sys.argv) != 2:
 		print("Error: python process_dataset.py *dataset*")
 		return 1
