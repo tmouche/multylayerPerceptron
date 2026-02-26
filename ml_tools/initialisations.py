@@ -1,10 +1,7 @@
-from typing import List, Sequence, Tuple
+from typing import List, Tuple
 from utils.types import ArrayF, FloatT
-
-
 import math
 import numpy as np
-import numpy.typing as npt
 
 SEED = 42
 

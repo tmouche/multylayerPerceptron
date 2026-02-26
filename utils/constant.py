@@ -1,6 +1,4 @@
 from typing import List
-from utils.types import FloatT
-
 
 COLUMNS: List[str] = ["ID", "Diagnosis", 
 		"mean radius", "std radius", "worst radius", 
@@ -22,13 +20,6 @@ DROP_COLUMNS: List[str] = ["ID",
         ]
 
 SPLIT_DATASET: int = 90
-
-ACTIVATION_RESTRICT_SHAPE = {
-    "softmax": 2
-}
-
-ACTIVATION_DEFAULT = "Nothing"
-INITIALIZATION_DEFAULT = "nothing"
 
 POSITIV = [1, 0]
 

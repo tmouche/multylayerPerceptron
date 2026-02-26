@@ -1,12 +1,9 @@
 from core.layer import Layer
-from ml_tools.activations import Activation
 from ml_tools.utils import step
+from typing import Dict, List
 from utils.logger import Logger
 from utils.types import ArrayF, FloatT
-from typing import Callable, Dict, List, Sequence, Tuple
-
 import numpy as np
-import numpy.typing as npt
 
 logger = Logger()
 

@@ -1,4 +1,3 @@
-
 from math import pow, log
 from utils.types import ArrayF, FloatT
 import numpy as np

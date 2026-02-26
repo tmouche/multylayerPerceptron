@@ -2,25 +2,19 @@ from core.layer import Layer
 from core.network import Network
 from ml_tools.evaluations import binary_classification
 from ml_tools.fire import Fire
-from ml_tools.optimizers import Optimizer
-from multipledispatch import dispatch
 from time import perf_counter
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List
 from utils.constant import POSITIV
 from utils.exception import (
-    LayerActivation,
     ModelActivation,
-    ModelException,
     ModelLoss,
     ModelNetCreate,
-    ModelOptimizer,
     NetworkException,
     UnexpectedException,
 )
 from utils.history import save_to_history
 from utils.logger import Logger
 from utils.types import ArrayF, FloatT
-
 import ml_tools.activations as Activation
 import ml_tools.losses as Loss
 import numpy as np
@@ -120,7 +114,7 @@ class Model:
         if not max_epoch: max_epoch = epochs
         if history_save:
             save_to_history(
-                optimizer=optimizer,
+                optimizer=f"{optimizer.__self__.__class__.__qualname__}.{optimizer.__name__}",
                 activation_function=self.network.layers[-1].output_activation,
                 loss_function=loss,
                 epoch=max_epoch,

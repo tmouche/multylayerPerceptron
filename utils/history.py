@@ -1,9 +1,7 @@
+from typing import List, Dict
+from utils.logger import Logger
 import pandas
 import os
-
-from typing import List, Dict
-
-from utils.logger import Logger
 
 logger = Logger()
 
@@ -24,7 +22,6 @@ COLUMNS = [
 ]
 
 FILE = "results/history.csv"
-
 
 def save_to_history(
         optimizer:str=None,

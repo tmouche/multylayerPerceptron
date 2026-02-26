@@ -1,5 +1,3 @@
-
-
 UNEXPECTED = "Unexpected Exception catched"
 FORMAT = "Parsing issue with format:"
 

@@ -3,20 +3,16 @@ from utils.exception import (
     LayerActivation,
     LayerException,
     LayerInit,
-    LayerInitializer,
     LayerShape,
     UnexpectedException,
 )
-from utils.constant import (
-    ACTIVATION_RESTRICT_SHAPE,
-    ACTIVATION_DEFAULT,
-    INITIALIZATION_DEFAULT
-)
 from utils.logger import Logger
 
-import ml_tools.initialisations as Initializer
-
 logger = Logger()
+
+ACTIVATION_RESTRICT_SHAPE = {
+    "softmax": 2
+}
 
 class Layer:
 

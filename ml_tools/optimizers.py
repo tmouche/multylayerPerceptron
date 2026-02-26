@@ -1,15 +1,11 @@
 from abc import ABC, abstractmethod
 from core.network import Network
-from core.layer import Layer
 from math import floor
 from ml_tools.fire import Fire
 from typing import Dict, List
 from utils.logger import Logger
 from utils.types import ArrayF, FloatT
-
-
 import numpy as np
-import numpy.typing as npt
 
 logger = Logger()
 
@@ -152,7 +148,6 @@ class Nesterov_Accelerated_Gradient(Optimizer):
     __r_momentum_w: List[List[ArrayF]]
     __r_momentum_b: List[ArrayF]
 
-
     def __init__(
             self,
             fire: Fire,
@@ -190,6 +185,7 @@ class Nesterov_Accelerated_Gradient(Optimizer):
     def _update_ahead_parameters(self, index: int):
         self.ahead_w[index] = self.net.weights[index] - (self.momentum_rate * self.net.learning_rate * self.momentum_w[index])
         self.ahead_b[index] = self.net.biaises[index] - (self.momentum_rate * self.net.learning_rate * self.momentum_b[index])
+
 
 class ADAM(Optimizer):
     

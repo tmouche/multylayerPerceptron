@@ -1,13 +1,11 @@
 from core.layer import Layer
 from core.model import Model
-from core.network import Network
-from ml_tools.fire import Fire
 from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient, Gradient_Descent, RMS_Propagation, ADAM
 from ml_tools.activations import Sigmoid
 from ml_tools.initialisations import he_normal
 
 
-from typing import List, Dict, Sequence
+from typing import List, Dict
 from utils.constant import COLUMNS, DROP_COLUMNS
 from utils.logger import Logger
 from utils.types import ArrayF, FloatT
@@ -175,7 +173,7 @@ def main():
         model.create_network([
                 Layer(shape=9),
                 Layer(shape=16, activation="Sigmoid", initializer=he_normal),
-                Layer(shape=2, activation="Sigmoid", initializer=he_normal)
+                Layer(shape=2, activation="Softmax", initializer=he_normal)
             ],
             0.0025,
             2
@@ -187,13 +185,14 @@ def main():
             optimizer=opti.stochastic,
             ds_train=l_train,
             ds_test=l_test,
-            loss="mean_square_error",
+            loss="categorical_cross_entropy",
             epochs=1000,
-            early_stoper=0.003,
-            print_training_state=True
+            early_stoper=0.03,
+            print_training_state=True,
+            history_save=True
         )
     except Exception as exc:
-        if exc: logger.error(exc)
+        if str(exc): logger.error(exc)
         return 1
 
     epoch = [i for i in range(len(model.accuracies.get("training")))]
