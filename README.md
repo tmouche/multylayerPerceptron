@@ -18,7 +18,8 @@ A lightweight neural network framework implemented from scratch in Python.
 ## 🚀 1. Introduction
 
 This project is an implementation of a **Multilayer Perceptron (MLP)** neural network built entirely from scratch, without using any machine learning frameworks.
-The MLP have to class breast tumor in Benign or Malign. Firstly you have to do some data research to know witch features are relevant to discriminate between each class to maximize the accuracy and minimize the network size.
+The goal of the network is to classify breast tumors as **Benign** or **Malignant**.  
+Before training the model, an initial data analysis phase is required to identify which features are the most relevant to discriminate between the two classes, in order to maximize accuracy while keeping the network size minimal.
 
 The main objective is to deeply understand and manually implement the core concepts behind artificial neural networks:
 
