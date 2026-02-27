@@ -1,5 +1,3 @@
 numpy
 pandas
-safetensors
-multipledispatch
 plotly
