@@ -2,8 +2,6 @@ from core.layer import Layer
 from core.model import Model
 from ml_tools.optimizers import Optimizer, Nesterov_Accelerated_Gradient, Gradient_Descent, RMS_Propagation, ADAM
 from ml_tools.initialisations import he_normal
-
-
 from typing import List, Dict
 from utils.constant import COLUMNS, DROP_COLUMNS
 from utils.logger import Logger
@@ -171,8 +169,8 @@ def main():
 
         model.create_network([
                 Layer(shape=9),
-                Layer(shape=16, activation="Sigmoid", initializer=he_normal),
-                Layer(shape=2, activation="Softmax", initializer=he_normal)
+                Layer(shape=16, activation="Sigmoid", initializer="he_normal"),
+                Layer(shape=2, activation="Sigmoid", initializer="he_normal")
             ],
             0.0025,
             2
@@ -181,15 +179,16 @@ def main():
         opti: Optimizer = ADAM(model.fire, model.network, momentum_rate=0.8, velocity_rate=0.8)
 
         model.fit(
-            optimizer=opti.stochastic,
+            optimizer=opti.deterministic,
             ds_train=l_train,
             ds_test=l_test,
             loss="categorical_cross_entropy",
-            epochs=1000,
+            epochs=500,
             early_stoper=0.03,
             print_training_state=True,
             history_save=True
         )
+        model.network.save_network()
     except Exception as exc:
         if str(exc): logger.error(exc)
         return 1

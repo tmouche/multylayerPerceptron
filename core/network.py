@@ -1,9 +1,11 @@
 from core.layer import Layer
 from ml_tools.fire import Fire
+from os import mkdir
 from typing import (
     Dict,
     List,
 )
+from utils.constant import FOLDER_NET_SAVE
 from utils.exception import (
     Format,
     LayerInit,
@@ -16,6 +18,8 @@ from utils.exception import (
 )
 from utils.logger import Logger
 from utils.types import ArrayF, FloatT
+import json
+import pickle
 
 logger = Logger()
 
@@ -87,12 +91,28 @@ class Network:
             self.biaises.append(self.layers[i].initializer(shape=(size)))
 
     
-    def save_model(self, path_to_file: str):
-        raw_data: Dict = {
-            "shape": self.config.shape,
-            "activation": self.config.activation_name,
-            "output activation": self.config.output_activation_name,
-            "weight": self.weights,
-            "biaises": self.biaises
-        }    
+    def save_network(self):
+        try:
+            mkdir(FOLDER_NET_SAVE)
+        except FileExistsError as fiExist:
+            logger.info(f"{FOLDER_NET_SAVE} already exist, error ignored")
+        except Exception:
+            raise UnexpectedException()
+        with open(f"{FOLDER_NET_SAVE}/settings.json", 'w') as fs:
+            raw_data: Dict[str, str | List[Dict[str, str]]] = {
+                "learning_rate": self.learning_rate,
+                "batch_size": self.batch_size,
+                "layers": []
+            }
+            for l in self.layers:
+                layer: Dict[str, str] = {}
+                layer["shape"] = l.shape
+                layer["output_activation"] = l.output_activation
+                layer["parameters_initializer"] = l.parameters_initiatilizer
+                raw_data.get("layers").append(layer)
+            fs.write(json.dumps(raw_data))
+        with open(f"{FOLDER_NET_SAVE}/weights.pkl", 'wb') as fw:
+            pickle.dump(self.weights, fw)
+        with open(f"{FOLDER_NET_SAVE}/biaises.pkl", 'wb') as fb:
+            pickle.dump(self.biaises, fb)
     

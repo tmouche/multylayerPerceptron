@@ -54,7 +54,7 @@ def binary_classification(
     for t in ds_test:
         output: ArrayF = network.fire.full(t.get("data"), network.weights, network.biaises)
         label: List[int] = list(t.get("label"))
-        if step(output, 0.5) == positiv:
+        if (step(output, 0.5) == positiv).all():
             if label == positiv:
                 tp += 1 
             else:

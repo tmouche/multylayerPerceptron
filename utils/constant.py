@@ -23,3 +23,5 @@ SPLIT_DATASET: int = 90
 
 POSITIV = [1, 0]
 
+FOLDER_NET_SAVE = "network_save"
+

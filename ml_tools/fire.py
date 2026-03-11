@@ -5,6 +5,8 @@ from utils.logger import Logger
 from utils.types import ArrayF, FloatT
 import numpy as np
 
+from time import perf_counter
+
 logger = Logger()
 
 class Fire:
@@ -46,7 +48,7 @@ class Fire:
             dataset: List[Dict[str, ArrayF]],
             weights: List[List[ArrayF]],
             biaises: List[ArrayF]
-        ):
+        ) -> tuple[FloatT, FloatT]:
         """
         Perform a backward pass (backpropagation) to compute gradients for weights and biases.
         Args:
@@ -68,13 +70,13 @@ class Fire:
             - Mean loss and accuracy over the dataset are appended to `self.losses` and `self.accuracies`.
         """
         ds_size: int = len(dataset)
-        e_accuracies: ArrayF = np.ndarray(ds_size)
-        e_losses: ArrayF = np.ndarray(ds_size)
+        e_accuracies: FloatT = 0.
+        e_losses: FloatT = 0.
 
         for i in range(ds_size):
             out: List[ArrayF] = self.forward(dataset[i].get("data"), weights, biaises)
-            e_losses[i] = self.layers[-1].activation.loss(out[-1], dataset[i].get("label"))
-            e_accuracies[i] = 1 if step(out[-1], 0.5) == dataset[i].get("label").tolist() else 0
+            e_losses += self.layers[-1].activation.loss(out[-1], dataset[i].get("label"))
+            e_accuracies += 1 if (step(out[-1], 0.5) == dataset[i].get("label")).all() else 0
             delta: ArrayF = self.layers[-1].activation.delta(out[-1], dataset[i].get("label"))
             self.nabla_w[-1] += np.outer(delta, out[-2])
             self.nabla_b[-1] += delta
@@ -86,9 +88,7 @@ class Fire:
                 self.nabla_b[idx] += delta
                 idx-=1
 
-        self.accuracies = np.append(self.accuracies, np.mean(e_accuracies))
-        self.losses = np.append(self.losses, np.mean(e_losses))
-
+        return e_accuracies / ds_size, e_losses / ds_size
     
 
     def forward(

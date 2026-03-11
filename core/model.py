@@ -15,9 +15,12 @@ from utils.exception import (
 from utils.history import save_to_history
 from utils.logger import Logger
 from utils.types import ArrayF, FloatT
+import json
 import ml_tools.activations as Activation
 import ml_tools.losses as Loss
 import numpy as np
+import pickle
+
 
 logger = Logger()
 
@@ -71,9 +74,20 @@ class Model:
         self.fire = Fire(self.network.layers) 
 
 
-    def load_network(self, path_to_init: str) -> Network:
-        pass
-
+    def load_network(self, save_folder: str) -> Network:
+        with open(f"{save_folder}/settings.json", 'r') as fs:
+            settings: Dict[str, str | List[Dict[str, str]]] = json.loads(fs.read())
+            layers: List[Layer] = []
+            for l in settings.get("layers"):
+                layer = Layer(
+                    l.get("shape"),
+                    l.get("output_activation"),
+                    l.get("parameters_initializer")
+                )
+                layers.append(layer)
+            learning_rate: FloatT = FloatT(settings.get("learning_rate"))
+            batch_size: int = int(settings.get("batch_size"))
+        self.create_network(layers, learning_rate, batch_size)
 
 
     def fit(
@@ -190,7 +204,7 @@ class Model:
             except Exception as e:
                 logger.error(f"Unexpected exception: {e}")
                 raise UnexpectedException()
-            
+
     def _print_epoch_state(
             self,
             act_epoch:int,

@@ -8,6 +8,8 @@ from utils.exception import (
 )
 from utils.logger import Logger
 
+from ml_tools import initialisations
+
 logger = Logger()
 
 ACTIVATION_RESTRICT_SHAPE = {
@@ -21,10 +23,10 @@ class Layer:
     output_activation: str
     activation: Callable
 
-    weights_initiatilizer: str
+    parameters_initiatilizer: str
     initializer: Callable
 
-    def __init__(self, shape: int, activation: str | None = None,  initializer: Callable | None = None):
+    def __init__(self, shape: int, activation: str | None = None,  initializer: str | None = None):
         """
         Initialize a layer configuration.
 
@@ -60,7 +62,9 @@ class Layer:
             self.output_activation = activation
             self.__init__activation()
 
-            self.initializer = initializer
+            self.parameters_initiatilizer = initializer
+            self.__init__initializer()
+            # self.initializer = initializer
         except LayerInit as iniErr:
             raise LayerException(context=str(iniErr))
         except Exception as e:
@@ -102,5 +106,16 @@ class Layer:
                     logger.error(f"Activation {self.output_activation} restrict violated with shape {self.shape}")
                     raise LayerActivation(context="Shape")
         self.activation = None
+
+    def __init__initializer(self):
+        """
+        Validate and initialize the initialize function for the layer.
+        """
+        if self.parameters_initiatilizer:
+            try:
+                self.initializer = getattr(initialisations, self.parameters_initiatilizer)
+            except Exception:
+                logger.error(f"Initializer {self.parameters_initiatilizer} not found")
+                raise LayerActivation(context="initializer")
 
         

@@ -27,8 +27,8 @@ class Optimizer(ABC):
             fire: Fire,
             network: Network
         ):
-        self.accuracies = np.ndarray(0)
-        self.losses = np.ndarray(0)
+        self.accuracy = 0.
+        self.loss = 0.
 
         self.fire = fire
         self.net = network
@@ -53,7 +53,7 @@ class Optimizer(ABC):
         self._learn([dataset], len(dataset))
         return self._metric()
 
-    def deterministic(self, dataset: List[Dict[str, ArrayF]]) -> Dict:
+    def deterministic(self, dataset: List[Dict[str, ArrayF]]) -> Dict[str, FloatT]:
         """
         Train and evaluate the network using deterministic batching (sequential order).
         Args:
@@ -96,12 +96,16 @@ class Optimizer(ABC):
         return self._metric()
 
     def _learn(self, batch: List[List[Dict[str, ArrayF]]], batch_size: int):
+        e_accuracies: FloatT = 0.
+        e_losses: FloatT = 0.
         for i in range(len(batch)):
-            self.fire.backward(list(batch[i]) if self.net.batch_size == 1 else batch[i], self.in_use_weights, self.in_use_biaises)
+            t_acc, t_loss = self.fire.backward(list(batch[i]) if self.net.batch_size == 1 else batch[i], self.in_use_weights, self.in_use_biaises)
+            e_accuracies += t_acc
+            e_losses += t_loss
             self._update(batch_size)
             self.fire._reset()
-        self.accuracies = np.append(self.accuracies, np.mean(self.fire.accuracies[-len(batch):]))
-        self.losses = np.append(self.losses, np.mean(self.fire.losses[-len(batch):]))
+        self.accuracy = e_accuracies / len(batch)
+        self.loss = e_losses / len(batch)
     
     def _prepare_batch(
             self,
@@ -112,7 +116,7 @@ class Optimizer(ABC):
         return [[dataset[i] for i in range(j, j + batch_size)] for j in range(0, new_ds_len, batch_size)]
 
     def _metric(self) -> Dict[str, List[FloatT]]:
-        return dict(accuracy=self.accuracies[-1], loss=self.losses[-1])
+        return dict(accuracy=self.accuracy, loss=self.loss)
 
     @abstractmethod
     def _update(self, batch_size: int):
