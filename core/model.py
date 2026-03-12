@@ -87,7 +87,12 @@ class Model:
                 layers.append(layer)
             learning_rate: FloatT = FloatT(settings.get("learning_rate"))
             batch_size: int = int(settings.get("batch_size"))
-        self.create_network(layers, learning_rate, batch_size)
+            self.create_network(layers, learning_rate, batch_size)
+            self.load_layers(settings.get("loss_function"))
+        with open(f"{save_folder}/weights.pkl", 'rb') as fw:
+            self.network.weights = pickle.load(fw)
+        with open(f"{save_folder}/biaises.pkl", 'rb') as fb:
+            self.network.biaises = pickle.load(fb)
 
 
     def fit(
@@ -195,6 +200,7 @@ class Model:
             raise UnexpectedException()
 
     def load_layers(self, loss: str):
+        self.network.loss_function = loss
         for i in range(1, len(self.network.layers)):
             try:
                 self.network.layers[i].activation = getattr(Activation, self.network.layers[i].output_activation)(loss)

@@ -12,7 +12,7 @@ class Activation(ABC):
     delta = None
     loss = None
 
-    def __init__(self, activation_function_name:str, loss_function_name:str):
+    def __init__(self, activation_function_name: str, loss_function_name: str):
         try:
             self.loss = getattr(Losses, loss_function_name)
             self.delta = getattr(self, ("_" + loss_function_name + "_grad"))

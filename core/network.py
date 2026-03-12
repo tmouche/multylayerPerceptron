@@ -33,6 +33,8 @@ class Network:
 
     learning_rate: FloatT
 
+    loss_function: str
+
     weights: List[List[ArrayF]]
     biaises: List[ArrayF]
 
@@ -102,6 +104,7 @@ class Network:
             raw_data: Dict[str, str | List[Dict[str, str]]] = {
                 "learning_rate": self.learning_rate,
                 "batch_size": self.batch_size,
+                "loss_function": self.loss_function,
                 "layers": []
             }
             for l in self.layers:
